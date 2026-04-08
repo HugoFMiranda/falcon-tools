@@ -4,6 +4,7 @@ const pdfState = {
     loadedPages: new Map(),
     processor: null,
     activeUploadId: null,
+    draggedQueueId: null,
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -226,10 +227,12 @@ function renderQueue(elements) {
     pdfState.queue.forEach((item, index) => {
         const row = document.createElement('article');
         row.className = 'queue-item';
+        row.draggable = true;
+        row.dataset.queueId = item.queueId;
         row.innerHTML = `
             <div>
                 <div class="queue-title">${index + 1}. ${escapeHtml(item.uploadName)}</div>
-                <div class="queue-meta">Page ${item.pageNumber}</div>
+                <div class="queue-meta">Page ${item.pageNumber} | Drag to reorder</div>
             </div>
             <div class="queue-item-actions">
                 <button class="button button-secondary" type="button" data-action="up">Up</button>
@@ -244,6 +247,10 @@ function renderQueue(elements) {
             pdfState.queue.splice(index, 1);
             renderQueue(elements);
         });
+        row.addEventListener('dragstart', (event) => handleQueueDragStart(event, item.queueId));
+        row.addEventListener('dragover', handleQueueDragOver);
+        row.addEventListener('drop', (event) => handleQueueDrop(event, item.queueId, elements));
+        row.addEventListener('dragend', handleQueueDragEnd);
 
         elements.queueList.append(row);
     });
@@ -259,6 +266,44 @@ function moveQueueItem(index, direction, elements) {
     const [item] = pdfState.queue.splice(index, 1);
     pdfState.queue.splice(targetIndex, 0, item);
     renderQueue(elements);
+}
+
+function handleQueueDragStart(event, queueId) {
+    pdfState.draggedQueueId = queueId;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', queueId);
+    event.currentTarget.classList.add('is-dragging');
+}
+
+function handleQueueDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+}
+
+function handleQueueDrop(event, targetQueueId, elements) {
+    event.preventDefault();
+
+    const draggedQueueId = pdfState.draggedQueueId || event.dataTransfer.getData('text/plain');
+    if (!draggedQueueId || draggedQueueId === targetQueueId) {
+        return;
+    }
+
+    const draggedIndex = pdfState.queue.findIndex((item) => item.queueId === draggedQueueId);
+    const targetIndex = pdfState.queue.findIndex((item) => item.queueId === targetQueueId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+        return;
+    }
+
+    const [item] = pdfState.queue.splice(draggedIndex, 1);
+    const insertionIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    pdfState.queue.splice(insertionIndex, 0, item);
+    renderQueue(elements);
+}
+
+function handleQueueDragEnd(event) {
+    pdfState.draggedQueueId = null;
+    event.currentTarget.classList.remove('is-dragging');
 }
 
 async function handleExport(elements) {

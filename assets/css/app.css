@@ -391,10 +391,16 @@ h2 {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 16px;
     align-items: center;
+    cursor: grab;
 }
 
 .queue-item-actions .button {
     padding: 10px 14px;
+}
+
+.queue-item.is-dragging {
+    opacity: 0.48;
+    cursor: grabbing;
 }
 
 .export-result {
