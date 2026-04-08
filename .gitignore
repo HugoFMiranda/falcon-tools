@@ -1,0 +1,8 @@
+/storage/uploads/*
+/storage/output/*
+/storage/temp/*
+/storage/sessions/*
+!/storage/uploads/.gitkeep
+!/storage/output/.gitkeep
+!/storage/temp/.gitkeep
+!/storage/sessions/.gitkeep
