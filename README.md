@@ -106,6 +106,7 @@ Recommended minimums:
 - `mime_content_type()` support should be available through `fileinfo`
 
 The app creates any missing storage folders automatically on boot.
+Stale files in `storage/uploads/`, `storage/output/`, and `storage/temp/` are cleaned automatically after 24 hours by default. Adjust `storage.cleanup_after_seconds` in [`includes/config.php`](/D:/development/apps/falcon-tools/includes/config.php) if needed.
 
 ## qpdf Integration
 

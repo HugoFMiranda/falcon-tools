@@ -23,3 +23,5 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/functions.php';
+
+cleanup_stale_storage_files();

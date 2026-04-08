@@ -53,6 +53,48 @@ function current_path(): string
     return parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 }
 
+function cleanup_stale_storage_files(): void
+{
+    $storageConfig = app_config('storage', []);
+    $maxAge = (int) ($storageConfig['cleanup_after_seconds'] ?? 0);
+
+    if ($maxAge <= 0) {
+        return;
+    }
+
+    foreach (['uploads', 'output', 'temp'] as $key) {
+        $directory = $storageConfig[$key] ?? null;
+        if (!is_string($directory) || !is_dir($directory)) {
+            continue;
+        }
+
+        $items = scandir($directory);
+        if ($items === false) {
+            continue;
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..' || $item === '.gitkeep') {
+                continue;
+            }
+
+            $path = $directory . DIRECTORY_SEPARATOR . $item;
+            if (!is_file($path)) {
+                continue;
+            }
+
+            $modifiedAt = filemtime($path);
+            if ($modifiedAt === false) {
+                continue;
+            }
+
+            if ((time() - $modifiedAt) >= $maxAge) {
+                @unlink($path);
+            }
+        }
+    }
+}
+
 function render_layout(string $title, callable $content, array $options = []): void
 {
     $appName = (string) app_config('app.name', 'Falcon Tools');
