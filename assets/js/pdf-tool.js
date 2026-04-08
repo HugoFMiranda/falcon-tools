@@ -8,6 +8,7 @@ const pdfState = {
     uploads: [],
     queue: [],
     activeUploadId: null,
+    activeMode: 'merge',
     draggedQueueId: null,
     exportDownloadUrl: null,
     serverProcessor: {
@@ -48,6 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
         exportModeNote: root.querySelector('[data-export-mode-note]'),
         removeDuplicates: root.querySelector('[data-remove-duplicates]'),
         groupDuplicates: root.querySelector('[data-group-duplicates]'),
+        modeCards: Array.from(root.querySelectorAll('[data-tool-mode]')),
+        modeTitle: root.querySelector('[data-mode-title]'),
+        modeCopy: root.querySelector('[data-mode-copy]'),
         resetWorkspace: root.querySelector('[data-reset-workspace]'),
         activeUploadLabel: root.querySelector('[data-active-upload-label]'),
         rangeBuilder: root.querySelector('[data-range-builder]'),
@@ -66,6 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.removeDuplicates.addEventListener('click', () => removeDuplicateQueueEntries(elements));
     elements.groupDuplicates.addEventListener('click', () => highlightDuplicateQueueEntries(elements));
     elements.outputName.addEventListener('input', () => persistWorkspace(elements));
+    elements.modeCards.forEach((card) => {
+        card.addEventListener('click', () => setActiveMode(card.dataset.toolMode || 'merge', elements));
+    });
 
     bootstrapWorkspace(elements);
 });
@@ -74,6 +81,7 @@ async function bootstrapWorkspace(elements) {
     await loadServerProcessorState(elements);
     restoreWorkspace(elements);
     updateExportModeNote(elements);
+    updateModeUI(elements);
     renderUploads(elements);
     renderQueue(elements);
 }
@@ -140,11 +148,13 @@ function renderUploads(elements) {
                 <div class="upload-meta">${formatBytes(upload.size)} | ${upload.pageCount} pages</div>
             </div>
             <div class="upload-actions">
+                <button class="button button-secondary" type="button" data-action="add-all">Add all</button>
                 <button class="button button-secondary" type="button" data-action="browse">Browse pages</button>
                 <button class="button button-secondary" type="button" data-action="remove">Remove</button>
             </div>
         `;
 
+        card.querySelector('[data-action="add-all"]').addEventListener('click', () => addAllPages(upload, elements));
         card.querySelector('[data-action="browse"]').addEventListener('click', () => loadUploadPages(upload.id, elements));
         card.querySelector('[data-action="remove"]').addEventListener('click', () => removeUpload(upload.id, elements));
 
@@ -241,6 +251,16 @@ function addQueueItem(upload, pageNumber) {
         pageNumber,
         rotation: 0,
     });
+}
+
+function addAllPages(upload, elements) {
+    for (let pageNumber = 1; pageNumber <= upload.pageCount; pageNumber += 1) {
+        addQueueItem(upload, pageNumber);
+    }
+
+    persistWorkspace(elements);
+    renderQueue(elements);
+    renderFeedback(elements.root, `Added all ${upload.pageCount} pages from ${upload.originalName}.`);
 }
 
 function renderQueue(elements) {
@@ -603,6 +623,37 @@ function updateExportModeNote(elements) {
         : 'Browser mode keeps PDFs in this tab and avoids uploading source files.';
 }
 
+function setActiveMode(mode, elements) {
+    pdfState.activeMode = mode;
+    updateModeUI(elements);
+    persistWorkspace(elements);
+}
+
+function updateModeUI(elements) {
+    const modeContent = {
+        merge: {
+            title: 'Merge PDFs',
+            copy: 'Append full documents fast or pick specific pages when you need a custom order.',
+        },
+        reorder: {
+            title: 'Reorder PDF',
+            copy: 'Load a PDF, add its pages, drag them into a new order, and download the result.',
+        },
+        mix: {
+            title: 'Custom Mix',
+            copy: 'Combine ranges and individual pages from multiple PDFs in any order you want.',
+        },
+    };
+
+    const current = modeContent[pdfState.activeMode] || modeContent.merge;
+    elements.modeTitle.textContent = current.title;
+    elements.modeCopy.textContent = current.copy;
+
+    elements.modeCards.forEach((card) => {
+        card.classList.toggle('is-active', card.dataset.toolMode === pdfState.activeMode);
+    });
+}
+
 async function uploadWorkspaceToServer() {
     const formData = new FormData();
     const localIds = [];
@@ -723,6 +774,10 @@ function restoreWorkspace(elements) {
             elements.exportMode.value = snapshot.exportMode;
         }
 
+        if (typeof snapshot.activeMode === 'string') {
+            pdfState.activeMode = snapshot.activeMode;
+        }
+
         if (Array.isArray(snapshot.queue)) {
             pdfState.queue = snapshot.queue.map((item) => ({
                 queueId: typeof item.queueId === 'string' ? item.queueId : makeId('queue'),
@@ -741,6 +796,7 @@ function persistWorkspace(elements) {
     const snapshot = {
         outputName: elements.outputName.value || 'falcon-merged.pdf',
         exportMode: elements.exportMode.value,
+        activeMode: pdfState.activeMode,
         queue: pdfState.queue.map((item) => ({
             queueId: item.queueId,
             uploadId: item.uploadId,

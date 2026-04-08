@@ -8,36 +8,18 @@ $tools = tool_catalog();
 
 render_layout('Dashboard', function () use ($tools): void {
     ?>
-    <section class="hero-panel">
-        <div>
-            <p class="eyebrow">Personal Utility Platform</p>
-            <h1>Falcon Tools</h1>
-            <p class="lead">A modular PHP utilities dashboard built for small file workflows. Start with PDF page operations and expand into image, GIF, and file conversion tools over time.</p>
+    <section class="center-shell">
+        <div class="dashboard-shell">
+            <h1 class="dashboard-title">Falcon Tools</h1>
+            <section class="tool-grid tool-grid-minimal">
+            <?php foreach ($tools as $tool): ?>
+                <a class="tool-card tool-card-minimal<?= strtolower($tool['status']) === 'planned' ? ' is-planned' : '' ?>" href="<?= h($tool['href']) ?>" aria-label="<?= h($tool['title']) ?>">
+                    <span class="tool-icon" aria-hidden="true"><?= h($tool['icon'] ?? '•') ?></span>
+                    <span class="tool-subtitle"><?= h($tool['title']) ?></span>
+                </a>
+            <?php endforeach; ?>
+            </section>
         </div>
-        <a class="button button-primary" href="<?= h(url_for('/tools/pdf/')) ?>">Open PDF Tool</a>
-    </section>
-
-    <section class="section-heading">
-        <div>
-            <p class="eyebrow">Tool Modules</p>
-            <h2>Current and planned utilities</h2>
-        </div>
-    </section>
-
-    <section class="tool-grid">
-        <?php foreach ($tools as $tool): ?>
-            <article class="tool-card">
-                <div class="tool-card-top">
-                    <span class="status-pill status-<?= h(strtolower($tool['status'])) ?>"><?= h($tool['status']) ?></span>
-                    <h3><?= h($tool['title']) ?></h3>
-                </div>
-                <p><?= h($tool['description']) ?></p>
-                <a class="text-link" href="<?= h($tool['href']) ?>">View module</a>
-            </article>
-        <?php endforeach; ?>
-    </section>
+        </section>
     <?php
-}, [
-    'active_path' => '/',
-    'tool_cards' => ['PDF', 'Image', 'GIF', 'Video', 'Conversion'],
-]);
+});

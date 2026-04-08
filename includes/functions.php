@@ -99,8 +99,6 @@ function render_layout(string $title, callable $content, array $options = []): v
 {
     $appName = (string) app_config('app.name', 'Falcon Tools');
     $pageTitle = $title . ' | ' . $appName;
-    $activePath = $options['active_path'] ?? current_path();
-    $toolCards = $options['tool_cards'] ?? [];
 
     ?><!DOCTYPE html>
     <html lang="en">
@@ -111,30 +109,9 @@ function render_layout(string $title, callable $content, array $options = []): v
         <link rel="stylesheet" href="<?= h(asset_url('css/app.css')) ?>">
     </head>
     <body>
-        <div class="app-shell">
-            <header class="site-header">
-                <a class="brand" href="<?= h(url_for('/')) ?>"><?= h($appName) ?></a>
-                <nav class="main-nav" aria-label="Primary navigation">
-                    <a href="<?= h(url_for('/')) ?>"<?= $activePath === '/' ? ' aria-current="page"' : '' ?>>Dashboard</a>
-                    <a href="<?= h(url_for('/tools/pdf/')) ?>"<?= str_starts_with($activePath, '/tools/pdf') ? ' aria-current="page"' : '' ?>>PDF Tools</a>
-                </nav>
-            </header>
-
-            <main class="site-main">
-                <?php $content(); ?>
-            </main>
-
-            <footer class="site-footer">
-                <p>Falcon Tools is structured as a modular utility platform. More tools can be added without changing the shell.</p>
-                <?php if ($toolCards !== []): ?>
-                    <div class="footer-tags">
-                        <?php foreach ($toolCards as $card): ?>
-                            <span><?= h($card) ?></span>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </footer>
-        </div>
+        <main class="site-main">
+            <?php $content(); ?>
+        </main>
         <script src="<?= h(asset_url('js/app.js')) ?>" defer></script>
     </body>
     </html><?php
@@ -148,6 +125,7 @@ function tool_catalog(): array
             'slug' => 'pdf',
             'href' => url_for('/tools/pdf/'),
             'status' => 'Live',
+            'icon' => '◫',
             'description' => 'Upload PDFs, build a page merge queue, reorder pages, and export a combined file.',
         ],
         [
@@ -155,6 +133,7 @@ function tool_catalog(): array
             'slug' => 'image',
             'href' => '#',
             'status' => 'Planned',
+            'icon' => '◩',
             'description' => 'Future home for image conversion, resizing, and lightweight edits.',
         ],
         [
@@ -162,6 +141,7 @@ function tool_catalog(): array
             'slug' => 'gif',
             'href' => '#',
             'status' => 'Planned',
+            'icon' => '◎',
             'description' => 'Future utilities for GIF creation, trimming, and compression.',
         ],
         [
@@ -169,6 +149,7 @@ function tool_catalog(): array
             'slug' => 'video',
             'href' => '#',
             'status' => 'Planned',
+            'icon' => '◬',
             'description' => 'Reserved for video extraction and animated export workflows.',
         ],
     ];
