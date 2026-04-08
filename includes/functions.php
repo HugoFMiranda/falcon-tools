@@ -36,6 +36,18 @@ function asset_url(string $path): string
     return $baseUrl . '/assets/' . ltrim($path, '/');
 }
 
+function url_for(string $path = ''): string
+{
+    $baseUrl = rtrim((string) app_config('app.base_url', ''), '/');
+    $normalized = '/' . ltrim($path, '/');
+
+    if ($normalized === '/') {
+        return $baseUrl === '' ? '/' : $baseUrl . '/';
+    }
+
+    return $baseUrl . $normalized;
+}
+
 function current_path(): string
 {
     return parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
@@ -59,10 +71,10 @@ function render_layout(string $title, callable $content, array $options = []): v
     <body>
         <div class="app-shell">
             <header class="site-header">
-                <a class="brand" href="/"><?= h($appName) ?></a>
+                <a class="brand" href="<?= h(url_for('/')) ?>"><?= h($appName) ?></a>
                 <nav class="main-nav" aria-label="Primary navigation">
-                    <a href="/"<?= $activePath === '/' ? ' aria-current="page"' : '' ?>>Dashboard</a>
-                    <a href="/tools/pdf/"<?= str_starts_with($activePath, '/tools/pdf') ? ' aria-current="page"' : '' ?>>PDF Tools</a>
+                    <a href="<?= h(url_for('/')) ?>"<?= $activePath === '/' ? ' aria-current="page"' : '' ?>>Dashboard</a>
+                    <a href="<?= h(url_for('/tools/pdf/')) ?>"<?= str_starts_with($activePath, '/tools/pdf') ? ' aria-current="page"' : '' ?>>PDF Tools</a>
                 </nav>
             </header>
 
@@ -92,7 +104,7 @@ function tool_catalog(): array
         [
             'title' => 'PDF Page Operations',
             'slug' => 'pdf',
-            'href' => '/tools/pdf/',
+            'href' => url_for('/tools/pdf/'),
             'status' => 'Live',
             'description' => 'Upload PDFs, build a page merge queue, reorder pages, and export a combined file.',
         ],

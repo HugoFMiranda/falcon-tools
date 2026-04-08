@@ -14,7 +14,7 @@ render_layout('Dashboard', function () use ($tools): void {
             <h1>Falcon Tools</h1>
             <p class="lead">A modular PHP utilities dashboard built for small file workflows. Start with PDF page operations and expand into image, GIF, and file conversion tools over time.</p>
         </div>
-        <a class="button button-primary" href="/tools/pdf/">Open PDF Tool</a>
+        <a class="button button-primary" href="<?= h(url_for('/tools/pdf/')) ?>">Open PDF Tool</a>
     </section>
 
     <section class="section-heading">
