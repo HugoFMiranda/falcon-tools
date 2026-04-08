@@ -13,7 +13,11 @@ The PDF module currently supports:
 - Previewing pages with PDF.js
 - Building a custom merge queue from pages across multiple PDFs
 - Adding page ranges such as `1-3,5,8-10`
+- Choosing browser export by default, with optional qpdf-backed server export when available
 - Reordering queued pages
+- Rotating queued pages before export
+- Highlighting or removing duplicate queue entries
+- Persisting queue settings in browser storage between refreshes
 - Removing queued pages
 - Exporting a final PDF directly from the browser
 - Resetting the current workspace
@@ -134,6 +138,7 @@ The codebase is prepared for qpdf, but the current browser-first workflow export
 - The default user flow is local-first and browser-only.
 - Server-side PDF storage is now optional rather than required.
 - qpdf remains useful for larger files, scripted server workflows, or future batch tooling.
+- Server export is an explicit mode, not the default workflow.
 
 ## Adding Future Tools
 
@@ -156,6 +161,7 @@ Example future modules:
 ## Notes
 
 - The default PDF workflow now avoids uploading source files to the server.
+- Queue settings are saved in browser storage, but source PDF files are not persisted there.
 - Server-side PDF endpoints are still present for future qpdf-backed modes.
 - There is no authentication or database in this MVP.
 - The current PDF workflow is optimized for simplicity and personal use rather than large-scale batch processing.

@@ -253,6 +253,7 @@ h2 {
 .pdf-grid,
 .upload-form,
 .queue-actions,
+.queue-toolbar,
 .queue-list,
 .uploaded-list,
 .page-browser,
@@ -368,7 +369,7 @@ h2 {
 }
 
 .queue-actions {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px) auto;
     gap: 16px;
     align-items: end;
 }
@@ -379,12 +380,18 @@ h2 {
     align-items: end;
 }
 
+.queue-toolbar {
+    grid-template-columns: repeat(auto-fit, minmax(200px, max-content));
+    gap: 12px;
+}
+
 .field-group {
     display: grid;
     gap: 8px;
 }
 
-.field-group input {
+.field-group input,
+.field-group select {
     width: 100%;
     padding: 13px 14px;
     border-radius: 14px;
@@ -408,6 +415,11 @@ h2 {
 .queue-item.is-dragging {
     opacity: 0.48;
     cursor: grabbing;
+}
+
+.queue-item.is-duplicate {
+    border-color: #d59e6b;
+    background: #fff6ee;
 }
 
 .export-result {
@@ -460,6 +472,7 @@ h2 {
     .pdf-grid,
     .range-builder,
     .queue-actions,
+    .queue-toolbar,
     .queue-item {
         grid-template-columns: 1fr;
     }

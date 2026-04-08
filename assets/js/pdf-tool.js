@@ -2,12 +2,19 @@ import * as pdfjsLib from '../vendor/pdfjs/pdf.min.mjs';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdfjs/pdf.worker.min.mjs', import.meta.url).toString();
 
+const STORAGE_KEY = 'falcon-tools-pdf-workspace-v1';
+
 const pdfState = {
     uploads: [],
     queue: [],
     activeUploadId: null,
     draggedQueueId: null,
     exportDownloadUrl: null,
+    serverProcessor: {
+        available: false,
+        engine: 'browser-fallback',
+    },
+    duplicateKeys: new Set(),
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -37,6 +44,10 @@ document.addEventListener('DOMContentLoaded', () => {
         exportResult: root.querySelector('[data-export-result]'),
         outputName: root.querySelector('[data-output-name]'),
         engineLabel: root.querySelector('[data-engine-label]'),
+        exportMode: root.querySelector('[data-export-mode]'),
+        exportModeNote: root.querySelector('[data-export-mode-note]'),
+        removeDuplicates: root.querySelector('[data-remove-duplicates]'),
+        groupDuplicates: root.querySelector('[data-group-duplicates]'),
         resetWorkspace: root.querySelector('[data-reset-workspace]'),
         activeUploadLabel: root.querySelector('[data-active-upload-label]'),
         rangeBuilder: root.querySelector('[data-range-builder]'),
@@ -44,16 +55,28 @@ document.addEventListener('DOMContentLoaded', () => {
         addRangeButton: root.querySelector('[data-add-range]'),
     };
 
-    elements.engineLabel.textContent = 'Browser-first workspace | files stay local to this tab';
-
     elements.uploadForm.addEventListener('submit', (event) => handleLocalFiles(event, elements));
     elements.exportButton.addEventListener('click', () => handleExport(elements));
     elements.resetWorkspace.addEventListener('click', () => resetWorkspace(elements));
     elements.addRangeButton.addEventListener('click', () => addRangeFromActiveUpload(elements));
+    elements.exportMode.addEventListener('change', () => {
+        updateExportModeNote(elements);
+        persistWorkspace(elements);
+    });
+    elements.removeDuplicates.addEventListener('click', () => removeDuplicateQueueEntries(elements));
+    elements.groupDuplicates.addEventListener('click', () => highlightDuplicateQueueEntries(elements));
+    elements.outputName.addEventListener('input', () => persistWorkspace(elements));
 
+    bootstrapWorkspace(elements);
+});
+
+async function bootstrapWorkspace(elements) {
+    await loadServerProcessorState(elements);
+    restoreWorkspace(elements);
+    updateExportModeNote(elements);
     renderUploads(elements);
     renderQueue(elements);
-});
+}
 
 async function handleLocalFiles(event, elements) {
     event.preventDefault();
@@ -89,6 +112,7 @@ async function handleLocalFiles(event, elements) {
         }
 
         input.value = '';
+        persistWorkspace(elements);
         renderUploads(elements);
         renderFeedback(elements.root, 'PDFs added to the local workspace. Nothing was uploaded to the server.');
     } catch (error) {
@@ -183,6 +207,7 @@ function renderPageCard(upload, pageNumber, previewDataUrl, elements) {
 
     pageCard.querySelector('button').addEventListener('click', () => {
         addQueueItem(upload, pageNumber);
+        persistWorkspace(elements);
         renderQueue(elements);
     });
 
@@ -200,6 +225,7 @@ function addRangeFromActiveUpload(elements) {
         const pageNumbers = parsePageRange(elements.rangeInput.value, upload.pageCount);
         pageNumbers.forEach((pageNumber) => addQueueItem(upload, pageNumber));
         elements.rangeInput.value = '';
+        persistWorkspace(elements);
         renderQueue(elements);
         renderFeedback(elements.root, `Added ${pageNumbers.length} page${pageNumbers.length === 1 ? '' : 's'} from ${upload.originalName}.`);
     } catch (error) {
@@ -213,10 +239,12 @@ function addQueueItem(upload, pageNumber) {
         uploadId: upload.id,
         uploadName: upload.originalName,
         pageNumber,
+        rotation: 0,
     });
 }
 
 function renderQueue(elements) {
+    pdfState.duplicateKeys = findDuplicateKeys(pdfState.queue);
     elements.queueCount.textContent = `${pdfState.queue.length} page${pdfState.queue.length === 1 ? '' : 's'} selected`;
     elements.queueEmpty.hidden = pdfState.queue.length > 0;
     elements.queueList.innerHTML = '';
@@ -236,24 +264,32 @@ function renderQueue(elements) {
     pdfState.queue.forEach((item, index) => {
         const row = document.createElement('article');
         row.className = 'queue-item';
+        if (pdfState.duplicateKeys.has(queueDuplicateKey(item))) {
+            row.classList.add('is-duplicate');
+        }
         row.draggable = true;
         row.dataset.queueId = item.queueId;
         row.innerHTML = `
             <div>
                 <div class="queue-title">${index + 1}. ${escapeHtml(item.uploadName)}</div>
-                <div class="queue-meta">Page ${item.pageNumber} | Drag to reorder</div>
+                <div class="queue-meta">Page ${item.pageNumber} | Rotation ${item.rotation || 0} deg | Drag to reorder</div>
             </div>
             <div class="queue-item-actions">
+                <button class="button button-secondary" type="button" data-action="rotate-left">Rotate -90</button>
+                <button class="button button-secondary" type="button" data-action="rotate-right">Rotate +90</button>
                 <button class="button button-secondary" type="button" data-action="up">Up</button>
                 <button class="button button-secondary" type="button" data-action="down">Down</button>
                 <button class="button button-secondary" type="button" data-action="remove">Remove</button>
             </div>
         `;
 
+        row.querySelector('[data-action="rotate-left"]').addEventListener('click', () => rotateQueueItem(index, -90, elements));
+        row.querySelector('[data-action="rotate-right"]').addEventListener('click', () => rotateQueueItem(index, 90, elements));
         row.querySelector('[data-action="up"]').addEventListener('click', () => moveQueueItem(index, -1, elements));
         row.querySelector('[data-action="down"]').addEventListener('click', () => moveQueueItem(index, 1, elements));
         row.querySelector('[data-action="remove"]').addEventListener('click', () => {
             pdfState.queue.splice(index, 1);
+            persistWorkspace(elements);
             renderQueue(elements);
         });
         row.addEventListener('dragstart', (event) => handleQueueDragStart(event, item.queueId));
@@ -274,6 +310,18 @@ function moveQueueItem(index, direction, elements) {
 
     const [item] = pdfState.queue.splice(index, 1);
     pdfState.queue.splice(targetIndex, 0, item);
+    persistWorkspace(elements);
+    renderQueue(elements);
+}
+
+function rotateQueueItem(index, delta, elements) {
+    const item = pdfState.queue[index];
+    if (!item) {
+        return;
+    }
+
+    item.rotation = normalizeRotation((item.rotation || 0) + delta);
+    persistWorkspace(elements);
     renderQueue(elements);
 }
 
@@ -307,6 +355,7 @@ function handleQueueDrop(event, targetQueueId, elements) {
     const [item] = pdfState.queue.splice(draggedIndex, 1);
     const insertionIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
     pdfState.queue.splice(insertionIndex, 0, item);
+    persistWorkspace(elements);
     renderQueue(elements);
 }
 
@@ -322,7 +371,12 @@ async function handleExport(elements) {
     }
 
     try {
-        const { PDFDocument } = window.PDFLib;
+        if (elements.exportMode.value === 'server') {
+            await handleServerExport(elements);
+            return;
+        }
+
+        const { PDFDocument, degrees } = window.PDFLib;
         const mergedPdf = await PDFDocument.create();
         const sourceCache = new Map();
 
@@ -338,6 +392,7 @@ async function handleExport(elements) {
 
             const sourcePdf = sourceCache.get(item.uploadId);
             const [page] = await mergedPdf.copyPages(sourcePdf, [item.pageNumber - 1]);
+            page.setRotation(degrees(item.rotation || 0));
             mergedPdf.addPage(page);
         }
 
@@ -360,6 +415,60 @@ async function handleExport(elements) {
     }
 }
 
+async function handleServerExport(elements) {
+    if (!pdfState.serverProcessor.available) {
+        throw new Error('Server export is not available because qpdf was not detected on the server.');
+    }
+
+    if (pdfState.queue.some((item) => normalizeRotation(item.rotation || 0) !== 0)) {
+        throw new Error('Server export does not support rotated pages yet. Use browser mode for rotated output.');
+    }
+
+    const uploadResponse = await uploadWorkspaceToServer();
+    const queue = buildServerQueue(uploadResponse.uploadMap);
+    const exportPayload = {
+        queue,
+        outputName: sanitizeOutputName(elements.outputName.value),
+    };
+
+    try {
+        const response = await fetch(window.FALCON_TOOLS.endpoints.export, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(exportPayload),
+            credentials: 'same-origin',
+        });
+        const payload = await response.json();
+
+        if (!payload.success) {
+            throw new Error(payload.error || 'Server export failed.');
+        }
+
+        const fileResponse = await fetch(payload.data.output.download_url, {
+            credentials: 'same-origin',
+        });
+        if (!fileResponse.ok) {
+            throw new Error('Could not download the server-generated PDF.');
+        }
+
+        const blob = await fileResponse.blob();
+        const downloadUrl = URL.createObjectURL(blob);
+        pdfState.exportDownloadUrl = downloadUrl;
+
+        elements.exportResult.hidden = false;
+        elements.exportResult.innerHTML = `
+            <span>Server export ready: ${escapeHtml(payload.data.output.filename)}</span>
+            <a class="text-link" href="${downloadUrl}" download="${escapeHtml(payload.data.output.filename)}">Download PDF</a>
+        `;
+
+        renderFeedback(elements.root, 'Final PDF was assembled on the server and downloaded back to the browser.');
+    } finally {
+        await cleanupServerWorkspace();
+    }
+}
+
 function removeUpload(uploadId, elements) {
     const uploadIndex = pdfState.uploads.findIndex((item) => item.id === uploadId);
     if (uploadIndex === -1) {
@@ -376,6 +485,7 @@ function removeUpload(uploadId, elements) {
 
     renderUploads(elements);
     renderQueue(elements);
+    persistWorkspace(elements);
     renderFeedback(elements.root, 'Loaded PDF removed. Any queued pages from it were removed as well.');
 }
 
@@ -395,6 +505,7 @@ function resetWorkspace(elements) {
     resetPageBrowser(elements);
     renderUploads(elements);
     renderQueue(elements);
+    persistWorkspace(elements);
     renderFeedback(elements.root, 'Workspace cleared. No files were saved on the server.');
 }
 
@@ -455,6 +566,243 @@ function parsePageRange(input, maxPage) {
 
 function getUpload(uploadId) {
     return pdfState.uploads.find((item) => item.id === uploadId) || null;
+}
+
+async function loadServerProcessorState(elements) {
+    try {
+        const response = await fetch(window.FALCON_TOOLS.endpoints.state, {
+            credentials: 'same-origin',
+        });
+        const payload = await response.json();
+
+        if (payload.success && payload.data && payload.data.processor) {
+            pdfState.serverProcessor = payload.data.processor;
+        }
+    } catch {
+        pdfState.serverProcessor = {
+            available: false,
+            engine: 'browser-fallback',
+        };
+    }
+
+    elements.engineLabel.textContent = pdfState.serverProcessor.available
+        ? 'Browser-first workspace | optional qpdf server export available'
+        : 'Browser-first workspace | server export unavailable in this environment';
+}
+
+function updateExportModeNote(elements) {
+    const serverOption = elements.exportMode.querySelector('option[value="server"]');
+    serverOption.disabled = !pdfState.serverProcessor.available;
+
+    if (elements.exportMode.value === 'server' && !pdfState.serverProcessor.available) {
+        elements.exportMode.value = 'browser';
+    }
+
+    elements.exportModeNote.textContent = elements.exportMode.value === 'server'
+        ? 'Server mode uploads the current PDFs only for export, assembles with qpdf, then cleans the server workspace.'
+        : 'Browser mode keeps PDFs in this tab and avoids uploading source files.';
+}
+
+async function uploadWorkspaceToServer() {
+    const formData = new FormData();
+    const localIds = [];
+
+    pdfState.uploads.forEach((upload) => {
+        formData.append('pdf_files[]', upload.file, upload.originalName);
+        localIds.push(upload.id);
+    });
+
+    const response = await fetch(window.FALCON_TOOLS.endpoints.upload, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
+    });
+    const payload = await response.json();
+
+    if (!payload.success) {
+        throw new Error(payload.error || 'Could not upload PDFs for server export.');
+    }
+
+    const serverUploads = payload.data.uploads || [];
+    if (serverUploads.length !== localIds.length) {
+        throw new Error('Server export upload did not return the expected number of PDFs.');
+    }
+
+    const uploadMap = new Map();
+    localIds.forEach((localId, index) => {
+        uploadMap.set(localId, serverUploads[index].id);
+    });
+
+    return { uploadMap };
+}
+
+function buildServerQueue(uploadMap) {
+    return pdfState.queue.map((item) => {
+        const uploadId = uploadMap.get(item.uploadId);
+        if (!uploadId) {
+            throw new Error(`Server export could not match the file ${item.uploadName}.`);
+        }
+
+        return {
+            queueId: item.queueId,
+            uploadId,
+            pageNumber: item.pageNumber,
+        };
+    });
+}
+
+async function cleanupServerWorkspace() {
+    try {
+        await fetch(window.FALCON_TOOLS.endpoints.cleanup, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ reset: true }),
+            credentials: 'same-origin',
+        });
+    } catch {
+        // Ignore cleanup failures. Automatic cleanup remains in place.
+    }
+}
+
+function removeDuplicateQueueEntries(elements) {
+    const seen = new Set();
+    const before = pdfState.queue.length;
+
+    pdfState.queue = pdfState.queue.filter((item) => {
+        const key = queueDuplicateKey(item);
+        if (seen.has(key)) {
+            return false;
+        }
+
+        seen.add(key);
+        return true;
+    });
+
+    persistWorkspace(elements);
+    renderQueue(elements);
+
+    const removedCount = before - pdfState.queue.length;
+    renderFeedback(
+        elements.root,
+        removedCount === 0
+            ? 'No duplicate queue entries were found.'
+            : `Removed ${removedCount} duplicate queue entr${removedCount === 1 ? 'y' : 'ies'}.`
+    );
+}
+
+function highlightDuplicateQueueEntries(elements) {
+    renderQueue(elements);
+
+    if (pdfState.duplicateKeys.size === 0) {
+        renderFeedback(elements.root, 'No duplicate queue entries were found.');
+        return;
+    }
+
+    renderFeedback(
+        elements.root,
+        `Highlighted ${pdfState.duplicateKeys.size} duplicate page selection${pdfState.duplicateKeys.size === 1 ? '' : 's'} in the queue.`
+    );
+}
+
+function restoreWorkspace(elements) {
+    const raw = safeLocalStorageGet(STORAGE_KEY);
+    if (!raw) {
+        return;
+    }
+
+    try {
+        const snapshot = JSON.parse(raw);
+
+        if (typeof snapshot.outputName === 'string' && snapshot.outputName !== '') {
+            elements.outputName.value = snapshot.outputName;
+        }
+
+        if (typeof snapshot.exportMode === 'string') {
+            elements.exportMode.value = snapshot.exportMode;
+        }
+
+        if (Array.isArray(snapshot.queue)) {
+            pdfState.queue = snapshot.queue.map((item) => ({
+                queueId: typeof item.queueId === 'string' ? item.queueId : makeId('queue'),
+                uploadId: String(item.uploadId || ''),
+                uploadName: String(item.uploadName || ''),
+                pageNumber: Number(item.pageNumber || 0),
+                rotation: normalizeRotation(Number(item.rotation || 0)),
+            })).filter((item) => item.uploadId !== '' && item.pageNumber > 0);
+        }
+    } catch {
+        safeLocalStorageRemove(STORAGE_KEY);
+    }
+}
+
+function persistWorkspace(elements) {
+    const snapshot = {
+        outputName: elements.outputName.value || 'falcon-merged.pdf',
+        exportMode: elements.exportMode.value,
+        queue: pdfState.queue.map((item) => ({
+            queueId: item.queueId,
+            uploadId: item.uploadId,
+            uploadName: item.uploadName,
+            pageNumber: item.pageNumber,
+            rotation: normalizeRotation(item.rotation || 0),
+        })),
+    };
+
+    safeLocalStorageSet(STORAGE_KEY, JSON.stringify(snapshot));
+}
+
+function findDuplicateKeys(queue) {
+    const counts = new Map();
+
+    queue.forEach((item) => {
+        const key = queueDuplicateKey(item);
+        counts.set(key, (counts.get(key) || 0) + 1);
+    });
+
+    const duplicates = new Set();
+    counts.forEach((count, key) => {
+        if (count > 1) {
+            duplicates.add(key);
+        }
+    });
+
+    return duplicates;
+}
+
+function queueDuplicateKey(item) {
+    return `${item.uploadId}:${item.pageNumber}:${normalizeRotation(item.rotation || 0)}`;
+}
+
+function normalizeRotation(value) {
+    const normalized = value % 360;
+
+    return normalized < 0 ? normalized + 360 : normalized;
+}
+
+function safeLocalStorageGet(key) {
+    try {
+        return window.localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function safeLocalStorageSet(key, value) {
+    try {
+        window.localStorage.setItem(key, value);
+    } catch {
+        // Ignore storage failures.
+    }
+}
+
+function safeLocalStorageRemove(key) {
+    try {
+        window.localStorage.removeItem(key);
+    } catch {
+        // Ignore storage failures.
+    }
 }
 
 function renderFeedback(root, message, isError = false) {

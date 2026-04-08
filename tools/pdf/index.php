@@ -85,7 +85,20 @@ render_layout('PDF Tools', function (): void {
                     <span>Output file name</span>
                     <input type="text" value="falcon-merged.pdf" data-output-name>
                 </label>
+                <label class="field-group">
+                    <span>Export mode</span>
+                    <select data-export-mode>
+                        <option value="browser" selected>Browser download</option>
+                        <option value="server">Server export with qpdf</option>
+                    </select>
+                </label>
                 <button class="button button-primary" type="button" data-export-button>Download final PDF</button>
+            </div>
+            <div class="subtle-note" data-export-mode-note>Browser mode keeps PDFs in this tab and avoids uploading source files.</div>
+
+            <div class="queue-toolbar">
+                <button class="button button-secondary" type="button" data-remove-duplicates>Remove duplicate entries</button>
+                <button class="button button-secondary" type="button" data-group-duplicates>Highlight duplicates</button>
             </div>
 
             <div class="queue-empty" data-queue-empty>Add pages from any uploaded PDF to build the final order.</div>
@@ -94,6 +107,16 @@ render_layout('PDF Tools', function (): void {
         </section>
     </section>
 
+    <script>
+        window.FALCON_TOOLS = {
+            endpoints: {
+                state: <?= json_encode(url_for('/api/pdf/state.php')) ?>,
+                upload: <?= json_encode(url_for('/api/pdf/upload.php')) ?>,
+                export: <?= json_encode(url_for('/api/pdf/export.php')) ?>,
+                cleanup: <?= json_encode(url_for('/api/pdf/cleanup.php')) ?>,
+            },
+        };
+    </script>
     <script src="<?= h(asset_url('vendor/pdf-lib/pdf-lib.min.js')) ?>" defer></script>
     <script src="<?= h(asset_url('js/pdf-tool.js')) ?>" type="module"></script>
     <?php
