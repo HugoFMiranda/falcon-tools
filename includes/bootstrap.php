@@ -5,6 +5,10 @@ declare(strict_types=1);
 $config = require __DIR__ . '/config.php';
 
 foreach ($config['storage'] as $directory) {
+    if (!is_string($directory)) {
+        continue;
+    }
+
     if (!is_dir($directory)) {
         mkdir($directory, 0775, true);
     }
