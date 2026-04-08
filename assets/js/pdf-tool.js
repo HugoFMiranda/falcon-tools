@@ -1,10 +1,13 @@
+import * as pdfjsLib from '../vendor/pdfjs/pdf.min.mjs';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdfjs/pdf.worker.min.mjs', import.meta.url).toString();
+
 const pdfState = {
     uploads: [],
     queue: [],
-    loadedPages: new Map(),
-    processor: null,
     activeUploadId: null,
     draggedQueueId: null,
+    exportDownloadUrl: null,
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,25 +17,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const waitForLibraries = window.setInterval(() => {
-        if (!window.pdfjsLib || !window.PDFLib) {
-            return;
-        }
-
-        window.clearInterval(waitForLibraries);
-        bootPdfTool(root);
-    }, 100);
-
-    window.setTimeout(() => {
-        if (!window.pdfjsLib || !window.PDFLib) {
-            window.clearInterval(waitForLibraries);
-            renderFeedback(root, 'PDF.js or PDF-Lib could not be loaded. Check your network access or host those files locally.', true);
-        }
-    }, 5000);
-});
-
-function bootPdfTool(root) {
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = window.FALCON_TOOLS.pdfJsWorker;
+    if (!window.PDFLib) {
+        renderFeedback(root, 'PDF-Lib could not be loaded from local assets.', true);
+        return;
+    }
 
     const elements = {
         root,
@@ -50,70 +38,61 @@ function bootPdfTool(root) {
         outputName: root.querySelector('[data-output-name]'),
         engineLabel: root.querySelector('[data-engine-label]'),
         resetWorkspace: root.querySelector('[data-reset-workspace]'),
+        activeUploadLabel: root.querySelector('[data-active-upload-label]'),
+        rangeBuilder: root.querySelector('[data-range-builder]'),
+        rangeInput: root.querySelector('[data-range-input]'),
+        addRangeButton: root.querySelector('[data-add-range]'),
     };
 
-    elements.uploadForm.addEventListener('submit', (event) => handleUpload(event, elements));
+    elements.engineLabel.textContent = 'Browser-first workspace | files stay local to this tab';
+
+    elements.uploadForm.addEventListener('submit', (event) => handleLocalFiles(event, elements));
     elements.exportButton.addEventListener('click', () => handleExport(elements));
     elements.resetWorkspace.addEventListener('click', () => resetWorkspace(elements));
+    elements.addRangeButton.addEventListener('click', () => addRangeFromActiveUpload(elements));
 
-    hydrateWorkspace(elements);
-}
+    renderUploads(elements);
+    renderQueue(elements);
+});
 
-async function hydrateWorkspace(elements) {
-    try {
-        const response = await fetch(window.FALCON_TOOLS.endpoints.state);
-        const payload = await response.json();
-
-        if (!payload.success) {
-            throw new Error(payload.error || 'Could not load the PDF workspace.');
-        }
-
-        pdfState.uploads = payload.data.uploads || [];
-        pdfState.processor = payload.data.processor || null;
-
-        if (pdfState.processor) {
-            elements.engineLabel.textContent = `${pdfState.processor.engine} | ${pdfState.processor.notes}`;
-        }
-
-        renderUploads(elements);
-        renderQueue(elements);
-    } catch (error) {
-        renderFeedback(elements.root, error.message, true);
-    }
-}
-
-async function handleUpload(event, elements) {
+async function handleLocalFiles(event, elements) {
     event.preventDefault();
 
     const input = elements.uploadForm.querySelector('input[type="file"]');
-    const files = input.files;
+    const files = Array.from(input.files || []);
 
-    if (!files || files.length === 0) {
-        renderFeedback(elements.root, 'Select at least one PDF file before uploading.', true);
+    if (files.length === 0) {
+        renderFeedback(elements.root, 'Select at least one PDF file before adding it to the workspace.', true);
         return;
     }
 
-    const formData = new FormData();
-    Array.from(files).forEach((file) => formData.append('pdf_files[]', file));
-
     try {
-        const response = await fetch(window.FALCON_TOOLS.endpoints.upload, {
-            method: 'POST',
-            body: formData,
-        });
-        const payload = await response.json();
+        for (const file of files) {
+            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                throw new Error(`${file.name} is not a PDF file.`);
+            }
 
-        if (!payload.success) {
-            throw new Error(payload.error || 'Upload failed.');
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            const pdfDocument = await pdfjsLib.getDocument({ data: bytes }).promise;
+            const objectUrl = URL.createObjectURL(file);
+
+            pdfState.uploads.push({
+                id: makeId('upload'),
+                originalName: file.name,
+                size: file.size,
+                pageCount: pdfDocument.numPages,
+                file,
+                bytes,
+                objectUrl,
+                previewCache: new Map(),
+            });
         }
 
-        pdfState.uploads = payload.data.uploads || [];
-        pdfState.loadedPages.clear();
         input.value = '';
         renderUploads(elements);
-        renderFeedback(elements.root, payload.data.message || 'PDF upload complete.');
+        renderFeedback(elements.root, 'PDFs added to the local workspace. Nothing was uploaded to the server.');
     } catch (error) {
-        renderFeedback(elements.root, error.message, true);
+        renderFeedback(elements.root, error.message || 'Could not load the selected PDF files.', true);
     }
 }
 
@@ -121,10 +100,8 @@ function renderUploads(elements) {
     elements.uploadCount.textContent = `${pdfState.uploads.length} file${pdfState.uploads.length === 1 ? '' : 's'}`;
 
     if (pdfState.uploads.length === 0) {
-        elements.uploadList.innerHTML = '<div class="queue-empty">No PDFs uploaded yet.</div>';
-        elements.pageBrowser.hidden = true;
-        elements.pageBrowserEmpty.hidden = false;
-        elements.pageBrowserEmpty.textContent = 'Select an uploaded PDF to inspect its pages.';
+        elements.uploadList.innerHTML = '<div class="queue-empty">No PDFs loaded yet.</div>';
+        resetPageBrowser(elements);
         return;
     }
 
@@ -133,11 +110,10 @@ function renderUploads(elements) {
     pdfState.uploads.forEach((upload) => {
         const card = document.createElement('article');
         card.className = 'upload-item';
-        const pageLabel = Number.isInteger(upload.page_count) ? ` | ${upload.page_count} pages` : '';
         card.innerHTML = `
             <div>
-                <div class="upload-title">${escapeHtml(upload.original_name)}</div>
-                <div class="upload-meta">${formatBytes(upload.size)}${pageLabel} | Uploaded ${formatDate(upload.uploaded_at)}</div>
+                <div class="upload-title">${escapeHtml(upload.originalName)}</div>
+                <div class="upload-meta">${formatBytes(upload.size)} | ${upload.pageCount} pages</div>
             </div>
             <div class="upload-actions">
                 <button class="button button-secondary" type="button" data-action="browse">Browse pages</button>
@@ -145,28 +121,34 @@ function renderUploads(elements) {
             </div>
         `;
 
-        card.querySelector('[data-action="browse"]').addEventListener('click', () => loadUploadPages(upload, elements));
+        card.querySelector('[data-action="browse"]').addEventListener('click', () => loadUploadPages(upload.id, elements));
         card.querySelector('[data-action="remove"]').addEventListener('click', () => removeUpload(upload.id, elements));
+
         elements.uploadList.append(card);
     });
 }
 
-async function loadUploadPages(upload, elements) {
-    pdfState.activeUploadId = upload.id;
+async function loadUploadPages(uploadId, elements) {
+    const upload = getUpload(uploadId);
+    if (!upload) {
+        return;
+    }
+
+    pdfState.activeUploadId = uploadId;
+    elements.activeUploadLabel.textContent = `Previewing ${upload.originalName}`;
+    elements.rangeBuilder.hidden = false;
     elements.pageBrowser.hidden = false;
     elements.pageBrowserEmpty.hidden = true;
-    elements.pageBrowser.innerHTML = '<div class="queue-empty">Loading PDF pages...</div>';
+    elements.pageBrowser.innerHTML = '<div class="queue-empty">Rendering PDF pages...</div>';
 
     try {
-        let cachedPages = pdfState.loadedPages.get(upload.id);
+        const pdfDocument = await pdfjsLib.getDocument({ data: upload.bytes }).promise;
+        const pageCards = [];
 
-        if (!cachedPages) {
-            // Cache rendered preview data per upload so browsing the same PDF stays responsive.
-            const loadingTask = window.pdfjsLib.getDocument(upload.file_url);
-            const pdfDocument = await loadingTask.promise;
-            cachedPages = [];
+        for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+            let previewDataUrl = upload.previewCache.get(pageNumber);
 
-            for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+            if (!previewDataUrl) {
                 const page = await pdfDocument.getPage(pageNumber);
                 const viewport = page.getViewport({ scale: 0.35 });
                 const canvas = document.createElement('canvas');
@@ -176,49 +158,76 @@ async function loadUploadPages(upload, elements) {
                 canvas.height = viewport.height;
 
                 await page.render({ canvasContext: context, viewport }).promise;
-
-                cachedPages.push({
-                    pageNumber,
-                    previewDataUrl: canvas.toDataURL('image/jpeg', 0.82),
-                });
+                previewDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+                upload.previewCache.set(pageNumber, previewDataUrl);
             }
 
-            pdfState.loadedPages.set(upload.id, cachedPages);
+            pageCards.push(renderPageCard(upload, pageNumber, previewDataUrl, elements));
         }
 
         elements.pageBrowser.innerHTML = '';
-
-        cachedPages.forEach((page) => {
-            const pageCard = document.createElement('article');
-            pageCard.className = 'page-card';
-            pageCard.innerHTML = `
-                <img src="${page.previewDataUrl}" alt="Preview of page ${page.pageNumber} from ${escapeHtml(upload.original_name)}">
-                <div class="page-card-meta">Page ${page.pageNumber}</div>
-                <button class="button button-secondary" type="button">Add to queue</button>
-            `;
-
-            pageCard.querySelector('button').addEventListener('click', () => {
-                pdfState.queue.push({
-                    queueId: makeQueueId(),
-                    uploadId: upload.id,
-                    uploadName: upload.original_name,
-                    pageNumber: page.pageNumber,
-                });
-                renderQueue(elements);
-            });
-
-            elements.pageBrowser.append(pageCard);
-        });
+        pageCards.forEach((card) => elements.pageBrowser.append(card));
     } catch (error) {
-        elements.pageBrowser.innerHTML = `<div class="queue-empty">${escapeHtml(error.message || 'Could not load PDF pages.')}</div>`;
+        elements.pageBrowser.innerHTML = `<div class="queue-empty">${escapeHtml(error.message || 'Could not render the PDF pages.')}</div>`;
     }
+}
+
+function renderPageCard(upload, pageNumber, previewDataUrl, elements) {
+    const pageCard = document.createElement('article');
+    pageCard.className = 'page-card';
+    pageCard.innerHTML = `
+        <img src="${previewDataUrl}" alt="Preview of page ${pageNumber} from ${escapeHtml(upload.originalName)}">
+        <div class="page-card-meta">Page ${pageNumber}</div>
+        <button class="button button-secondary" type="button">Add to queue</button>
+    `;
+
+    pageCard.querySelector('button').addEventListener('click', () => {
+        addQueueItem(upload, pageNumber);
+        renderQueue(elements);
+    });
+
+    return pageCard;
+}
+
+function addRangeFromActiveUpload(elements) {
+    const upload = getUpload(pdfState.activeUploadId);
+    if (!upload) {
+        renderFeedback(elements.root, 'Select a PDF before adding a page range.', true);
+        return;
+    }
+
+    try {
+        const pageNumbers = parsePageRange(elements.rangeInput.value, upload.pageCount);
+        pageNumbers.forEach((pageNumber) => addQueueItem(upload, pageNumber));
+        elements.rangeInput.value = '';
+        renderQueue(elements);
+        renderFeedback(elements.root, `Added ${pageNumbers.length} page${pageNumbers.length === 1 ? '' : 's'} from ${upload.originalName}.`);
+    } catch (error) {
+        renderFeedback(elements.root, error.message, true);
+    }
+}
+
+function addQueueItem(upload, pageNumber) {
+    pdfState.queue.push({
+        queueId: makeId('queue'),
+        uploadId: upload.id,
+        uploadName: upload.originalName,
+        pageNumber,
+    });
 }
 
 function renderQueue(elements) {
     elements.queueCount.textContent = `${pdfState.queue.length} page${pdfState.queue.length === 1 ? '' : 's'} selected`;
     elements.queueEmpty.hidden = pdfState.queue.length > 0;
     elements.queueList.innerHTML = '';
+
+    if (pdfState.exportDownloadUrl) {
+        URL.revokeObjectURL(pdfState.exportDownloadUrl);
+        pdfState.exportDownloadUrl = null;
+    }
+
     elements.exportResult.hidden = true;
+    elements.exportResult.innerHTML = '';
 
     if (pdfState.queue.length === 0) {
         return;
@@ -313,137 +322,139 @@ async function handleExport(elements) {
     }
 
     try {
-        const processResponse = await fetch(window.FALCON_TOOLS.endpoints.process, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ queue: pdfState.queue }),
-        });
-        const processPayload = await processResponse.json();
+        const { PDFDocument } = window.PDFLib;
+        const mergedPdf = await PDFDocument.create();
+        const sourceCache = new Map();
 
-        if (!processPayload.success) {
-            throw new Error(processPayload.error || 'Queue validation failed.');
+        for (const item of pdfState.queue) {
+            if (!sourceCache.has(item.uploadId)) {
+                const upload = getUpload(item.uploadId);
+                if (!upload) {
+                    throw new Error(`Source PDF ${item.uploadName} is no longer available.`);
+                }
+
+                sourceCache.set(item.uploadId, await PDFDocument.load(upload.bytes));
+            }
+
+            const sourcePdf = sourceCache.get(item.uploadId);
+            const [page] = await mergedPdf.copyPages(sourcePdf, [item.pageNumber - 1]);
+            mergedPdf.addPage(page);
         }
 
-        const exportRequest = {
-            queue: pdfState.queue,
-            outputName: elements.outputName.value || 'falcon-merged.pdf',
-        };
+        const mergedBytes = await mergedPdf.save();
+        const blob = new Blob([mergedBytes], { type: 'application/pdf' });
+        const downloadUrl = URL.createObjectURL(blob);
+        const outputName = sanitizeOutputName(elements.outputName.value);
 
-        if (!pdfState.processor || !pdfState.processor.available) {
-            const mergedBytes = await buildMergedPdf();
-            exportRequest.mergedDocumentBase64 = bytesToBase64(mergedBytes);
-        }
-
-        const exportResponse = await fetch(window.FALCON_TOOLS.endpoints.export, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(exportRequest),
-        });
-        const exportPayload = await exportResponse.json();
-
-        if (!exportPayload.success) {
-            throw new Error(exportPayload.error || 'Export failed.');
-        }
+        pdfState.exportDownloadUrl = downloadUrl;
 
         elements.exportResult.hidden = false;
         elements.exportResult.innerHTML = `
-            <span>Export complete: ${escapeHtml(exportPayload.data.output.filename)}</span>
-            <a class="text-link" href="${exportPayload.data.output.download_url}">Download PDF</a>
+            <span>Export ready: ${escapeHtml(outputName)}</span>
+            <a class="text-link" href="${downloadUrl}" download="${escapeHtml(outputName)}">Download PDF</a>
         `;
+
+        renderFeedback(elements.root, 'Final PDF built locally in the browser.');
     } catch (error) {
-        renderFeedback(elements.root, error.message, true);
+        renderFeedback(elements.root, error.message || 'Could not build the final PDF.', true);
     }
 }
 
-async function buildMergedPdf() {
-    const { PDFDocument } = window.PDFLib;
-    const mergedPdf = await PDFDocument.create();
-    const sourceCache = new Map();
+function removeUpload(uploadId, elements) {
+    const uploadIndex = pdfState.uploads.findIndex((item) => item.id === uploadId);
+    if (uploadIndex === -1) {
+        return;
+    }
 
-    // The browser assembles the final PDF for the MVP. The backend stores the result and
-    // already exposes queue validation endpoints so qpdf can replace this step later.
-    for (const item of pdfState.queue) {
-        if (!sourceCache.has(item.uploadId)) {
-            const upload = pdfState.uploads.find((entry) => entry.id === item.uploadId);
-            if (!upload) {
-                throw new Error(`Upload ${item.uploadId} is no longer available.`);
+    const [removed] = pdfState.uploads.splice(uploadIndex, 1);
+    URL.revokeObjectURL(removed.objectUrl);
+    pdfState.queue = pdfState.queue.filter((item) => item.uploadId !== uploadId);
+
+    if (pdfState.activeUploadId === uploadId) {
+        resetPageBrowser(elements);
+    }
+
+    renderUploads(elements);
+    renderQueue(elements);
+    renderFeedback(elements.root, 'Loaded PDF removed. Any queued pages from it were removed as well.');
+}
+
+function resetWorkspace(elements) {
+    pdfState.uploads.forEach((upload) => URL.revokeObjectURL(upload.objectUrl));
+    pdfState.uploads = [];
+    pdfState.queue = [];
+    pdfState.activeUploadId = null;
+    pdfState.draggedQueueId = null;
+
+    if (pdfState.exportDownloadUrl) {
+        URL.revokeObjectURL(pdfState.exportDownloadUrl);
+        pdfState.exportDownloadUrl = null;
+    }
+
+    elements.uploadForm.reset();
+    resetPageBrowser(elements);
+    renderUploads(elements);
+    renderQueue(elements);
+    renderFeedback(elements.root, 'Workspace cleared. No files were saved on the server.');
+}
+
+function resetPageBrowser(elements) {
+    pdfState.activeUploadId = null;
+    elements.activeUploadLabel.textContent = 'Preview one PDF at a time';
+    elements.rangeBuilder.hidden = true;
+    elements.pageBrowser.hidden = true;
+    elements.pageBrowserEmpty.hidden = false;
+    elements.pageBrowserEmpty.textContent = 'Select a loaded PDF to inspect its pages.';
+    elements.pageBrowser.innerHTML = '';
+}
+
+function parsePageRange(input, maxPage) {
+    const trimmed = input.trim();
+    if (trimmed === '') {
+        throw new Error('Enter a page range before adding it to the queue.');
+    }
+
+    const pages = [];
+    const segments = trimmed.split(',');
+
+    for (const rawSegment of segments) {
+        const segment = rawSegment.trim();
+        if (segment === '') {
+            continue;
+        }
+
+        if (segment.includes('-')) {
+            const [startText, endText] = segment.split('-', 2).map((part) => part.trim());
+            const start = Number.parseInt(startText, 10);
+            const end = Number.parseInt(endText, 10);
+
+            if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start || end > maxPage) {
+                throw new Error(`Invalid page range "${segment}".`);
             }
 
-            const sourceBytes = await fetch(upload.file_url).then((response) => response.arrayBuffer());
-            sourceCache.set(item.uploadId, await PDFDocument.load(sourceBytes));
-        }
+            for (let pageNumber = start; pageNumber <= end; pageNumber += 1) {
+                pages.push(pageNumber);
+            }
+        } else {
+            const pageNumber = Number.parseInt(segment, 10);
 
-        const sourcePdf = sourceCache.get(item.uploadId);
-        const [page] = await mergedPdf.copyPages(sourcePdf, [item.pageNumber - 1]);
-        mergedPdf.addPage(page);
+            if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > maxPage) {
+                throw new Error(`Invalid page number "${segment}".`);
+            }
+
+            pages.push(pageNumber);
+        }
     }
 
-    return mergedPdf.save();
+    if (pages.length === 0) {
+        throw new Error('No valid pages were found in that range.');
+    }
+
+    return pages;
 }
 
-async function resetWorkspace(elements) {
-    try {
-        const response = await fetch(window.FALCON_TOOLS.endpoints.cleanup, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ reset: true }),
-        });
-        const payload = await response.json();
-
-        if (!payload.success) {
-            throw new Error(payload.error || 'Could not reset the workspace.');
-        }
-
-        pdfState.uploads = [];
-        pdfState.queue = [];
-        pdfState.loadedPages.clear();
-        pdfState.activeUploadId = null;
-        renderUploads(elements);
-        renderQueue(elements);
-        renderFeedback(elements.root, 'Workspace cleared.');
-    } catch (error) {
-        renderFeedback(elements.root, error.message, true);
-    }
-}
-
-async function removeUpload(uploadId, elements) {
-    try {
-        const response = await fetch(window.FALCON_TOOLS.endpoints.removeUpload, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ uploadId }),
-        });
-        const payload = await response.json();
-
-        if (!payload.success) {
-            throw new Error(payload.error || 'Could not remove the uploaded PDF.');
-        }
-
-        pdfState.uploads = payload.data.uploads || [];
-        pdfState.loadedPages.delete(uploadId);
-        pdfState.queue = pdfState.queue.filter((item) => item.uploadId !== uploadId);
-
-        if (pdfState.activeUploadId === uploadId || pdfState.uploads.length === 0) {
-            pdfState.activeUploadId = null;
-            elements.pageBrowser.hidden = true;
-            elements.pageBrowserEmpty.hidden = false;
-            elements.pageBrowserEmpty.textContent = 'Select an uploaded PDF to inspect its pages.';
-        }
-
-        renderUploads(elements);
-        renderQueue(elements);
-        renderFeedback(elements.root, 'Upload removed. Any queued pages from that PDF were also removed.');
-    } catch (error) {
-        renderFeedback(elements.root, error.message, true);
-    }
+function getUpload(uploadId) {
+    return pdfState.uploads.find((item) => item.id === uploadId) || null;
 }
 
 function renderFeedback(root, message, isError = false) {
@@ -471,17 +482,11 @@ function formatBytes(bytes) {
     return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
-function formatDate(value) {
-    return new Date(value).toLocaleString();
-}
+function sanitizeOutputName(value) {
+    const trimmed = value.trim();
+    const safe = (trimmed === '' ? 'falcon-merged.pdf' : trimmed).replace(/[^A-Za-z0-9._-]+/g, '-');
 
-function bytesToBase64(bytes) {
-    let binary = '';
-    bytes.forEach((byte) => {
-        binary += String.fromCharCode(byte);
-    });
-
-    return window.btoa(binary);
+    return safe.toLowerCase().endsWith('.pdf') ? safe : `${safe}.pdf`;
 }
 
 function escapeHtml(value) {
@@ -493,10 +498,10 @@ function escapeHtml(value) {
         .replaceAll("'", '&#039;');
 }
 
-function makeQueueId() {
+function makeId(prefix) {
     if (window.crypto && typeof window.crypto.randomUUID === 'function') {
-        return window.crypto.randomUUID();
+        return `${prefix}-${window.crypto.randomUUID()}`;
     }
 
-    return `queue-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }

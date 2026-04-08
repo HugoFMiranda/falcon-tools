@@ -8,13 +8,14 @@ The project is structured as a multi-tool website from the start. The first live
 
 The PDF module currently supports:
 
-- Uploading one or more PDF files
-- Listing uploaded PDFs for the current session
+- Loading one or more PDF files directly in the browser
+- Keeping selected PDFs in the current tab instead of uploading them by default
 - Previewing pages with PDF.js
 - Building a custom merge queue from pages across multiple PDFs
+- Adding page ranges such as `1-3,5,8-10`
 - Reordering queued pages
 - Removing queued pages
-- Exporting a final PDF
+- Exporting a final PDF directly from the browser
 - Resetting the current workspace
 
 ## Folder Structure
@@ -65,7 +66,7 @@ falcon-tools/
 - `includes/` contains shared bootstrap, config, helpers, and PDF-specific backend logic.
 - `api/pdf/` contains tool-specific JSON endpoints and file delivery endpoints.
 - `storage/` holds temporary uploads, generated files, and PHP session storage.
-- `assets/` is split between shared CSS/JS and tool-specific frontend modules.
+- `assets/` is split between shared CSS/JS, vendored browser libraries, and tool-specific frontend modules.
 
 This keeps the shell reusable while allowing each tool to have its own page, JavaScript module, PHP helpers, and API routes.
 
@@ -108,25 +109,30 @@ The app creates any missing storage folders automatically on boot.
 
 ## qpdf Integration
 
-The codebase is prepared for qpdf, but the MVP currently exports by:
+The codebase is prepared for qpdf, but the current browser-first workflow exports by:
 
 1. building the merged PDF in the browser with `pdf-lib`
-2. sending the final PDF bytes to PHP
-3. storing the finished file in `storage/output/`
+2. generating a direct browser download without uploading source files first
 
 ### Where qpdf should be configured
 
 - Set the qpdf binary path in [`includes/config.php`](/D:/development/apps/falcon-tools/includes/config.php) under `pdf.qpdf_binary`
 - qpdf detection and processor status live in [`includes/pdf.php`](/D:/development/apps/falcon-tools/includes/pdf.php)
 
-### Where qpdf should be wired in next
+### Where qpdf can still be wired in
 
 - [`api/pdf/process.php`](/D:/development/apps/falcon-tools/api/pdf/process.php)
-  This is the right place to turn the UI queue into a validated server-side page plan.
+  This is the right place to validate a queue that is intentionally sent to the server.
 - [`api/pdf/export.php`](/D:/development/apps/falcon-tools/api/pdf/export.php)
-  This should switch from accepting `mergedDocumentBase64` to invoking qpdf with the normalized queue.
+  This can invoke qpdf when you want a server-side export mode.
 - [`includes/pdf.php`](/D:/development/apps/falcon-tools/includes/pdf.php)
   Add a command builder and execution wrapper here so qpdf invocation stays out of page controllers.
+
+### Current direction
+
+- The default user flow is local-first and browser-only.
+- Server-side PDF storage is now optional rather than required.
+- qpdf remains useful for larger files, scripted server workflows, or future batch tooling.
 
 ## Adding Future Tools
 
@@ -148,6 +154,7 @@ Example future modules:
 
 ## Notes
 
-- Uploaded and exported files are intentionally temporary.
+- The default PDF workflow now avoids uploading source files to the server.
+- Server-side PDF endpoints are still present for future qpdf-backed modes.
 - There is no authentication or database in this MVP.
 - The current PDF workflow is optimized for simplicity and personal use rather than large-scale batch processing.

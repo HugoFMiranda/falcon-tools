@@ -255,7 +255,8 @@ h2 {
 .queue-actions,
 .queue-list,
 .uploaded-list,
-.page-browser {
+.page-browser,
+.range-builder {
     display: grid;
 }
 
@@ -372,6 +373,12 @@ h2 {
     align-items: end;
 }
 
+.range-builder {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: end;
+}
+
 .field-group {
     display: grid;
     gap: 8px;
@@ -451,6 +458,7 @@ h2 {
     }
 
     .pdf-grid,
+    .range-builder,
     .queue-actions,
     .queue-item {
         grid-template-columns: 1fr;
