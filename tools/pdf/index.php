@@ -93,6 +93,7 @@ render_layout('PDF Tools', function (): void {
             endpoints: {
                 state: <?= json_encode(url_for('/api/pdf/state.php')) ?>,
                 upload: <?= json_encode(url_for('/api/pdf/upload.php')) ?>,
+                removeUpload: <?= json_encode(url_for('/api/pdf/delete.php')) ?>,
                 process: <?= json_encode(url_for('/api/pdf/process.php')) ?>,
                 export: <?= json_encode(url_for('/api/pdf/export.php')) ?>,
                 cleanup: <?= json_encode(url_for('/api/pdf/cleanup.php')) ?>,

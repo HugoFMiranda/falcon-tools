@@ -3,6 +3,7 @@ const pdfState = {
     queue: [],
     loadedPages: new Map(),
     processor: null,
+    activeUploadId: null,
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -138,16 +139,19 @@ function renderUploads(elements) {
                 <div class="upload-meta">${formatBytes(upload.size)}${pageLabel} | Uploaded ${formatDate(upload.uploaded_at)}</div>
             </div>
             <div class="upload-actions">
-                <button class="button button-secondary" type="button">Browse pages</button>
+                <button class="button button-secondary" type="button" data-action="browse">Browse pages</button>
+                <button class="button button-secondary" type="button" data-action="remove">Remove</button>
             </div>
         `;
 
-        card.querySelector('button').addEventListener('click', () => loadUploadPages(upload, elements));
+        card.querySelector('[data-action="browse"]').addEventListener('click', () => loadUploadPages(upload, elements));
+        card.querySelector('[data-action="remove"]').addEventListener('click', () => removeUpload(upload.id, elements));
         elements.uploadList.append(card);
     });
 }
 
 async function loadUploadPages(upload, elements) {
+    pdfState.activeUploadId = upload.id;
     elements.pageBrowser.hidden = false;
     elements.pageBrowserEmpty.hidden = true;
     elements.pageBrowser.innerHTML = '<div class="queue-empty">Loading PDF pages...</div>';
@@ -354,9 +358,44 @@ async function resetWorkspace(elements) {
         pdfState.uploads = [];
         pdfState.queue = [];
         pdfState.loadedPages.clear();
+        pdfState.activeUploadId = null;
         renderUploads(elements);
         renderQueue(elements);
         renderFeedback(elements.root, 'Workspace cleared.');
+    } catch (error) {
+        renderFeedback(elements.root, error.message, true);
+    }
+}
+
+async function removeUpload(uploadId, elements) {
+    try {
+        const response = await fetch(window.FALCON_TOOLS.endpoints.removeUpload, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ uploadId }),
+        });
+        const payload = await response.json();
+
+        if (!payload.success) {
+            throw new Error(payload.error || 'Could not remove the uploaded PDF.');
+        }
+
+        pdfState.uploads = payload.data.uploads || [];
+        pdfState.loadedPages.delete(uploadId);
+        pdfState.queue = pdfState.queue.filter((item) => item.uploadId !== uploadId);
+
+        if (pdfState.activeUploadId === uploadId || pdfState.uploads.length === 0) {
+            pdfState.activeUploadId = null;
+            elements.pageBrowser.hidden = true;
+            elements.pageBrowserEmpty.hidden = false;
+            elements.pageBrowserEmpty.textContent = 'Select an uploaded PDF to inspect its pages.';
+        }
+
+        renderUploads(elements);
+        renderQueue(elements);
+        renderFeedback(elements.root, 'Upload removed. Any queued pages from that PDF were also removed.');
     } catch (error) {
         renderFeedback(elements.root, error.message, true);
     }

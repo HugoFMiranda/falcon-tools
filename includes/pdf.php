@@ -141,6 +141,25 @@ function pdf_get_upload(string $uploadId): ?array
     return $state['uploads'][$uploadId] ?? null;
 }
 
+function pdf_delete_upload(string $uploadId): bool
+{
+    $state = pdf_state();
+    $upload = $state['uploads'][$uploadId] ?? null;
+
+    if ($upload === null) {
+        return false;
+    }
+
+    if (isset($upload['path']) && is_file($upload['path'])) {
+        unlink($upload['path']);
+    }
+
+    unset($state['uploads'][$uploadId]);
+    pdf_save_state($state);
+
+    return true;
+}
+
 function pdf_register_output(string $filename, string $binaryContent): array
 {
     $outputId = pdf_make_id('output');
