@@ -155,6 +155,7 @@ async function loadUploadPages(upload, elements) {
         let cachedPages = pdfState.loadedPages.get(upload.id);
 
         if (!cachedPages) {
+            // Cache rendered preview data per upload so browsing the same PDF stays responsive.
             const loadingTask = window.pdfjsLib.getDocument(upload.file_url);
             const pdfDocument = await loadingTask.promise;
             cachedPages = [];
@@ -308,6 +309,8 @@ async function buildMergedPdf() {
     const mergedPdf = await PDFDocument.create();
     const sourceCache = new Map();
 
+    // The browser assembles the final PDF for the MVP. The backend stores the result and
+    // already exposes queue validation endpoints so qpdf can replace this step later.
     for (const item of pdfState.queue) {
         if (!sourceCache.has(item.uploadId)) {
             const upload = pdfState.uploads.find((entry) => entry.id === item.uploadId);

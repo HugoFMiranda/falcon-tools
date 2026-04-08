@@ -263,6 +263,8 @@ function pdf_processor_status(): array
 
 function pdf_decode_binary_payload(string $base64): string
 {
+    // The MVP compiles the final PDF in the browser, then hands the binary back to PHP for storage.
+    // This keeps the export working today while leaving qpdf room to take over server-side assembly later.
     $decoded = base64_decode($base64, true);
 
     if ($decoded === false || $decoded === '') {

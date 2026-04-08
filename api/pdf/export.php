@@ -21,6 +21,8 @@ if (!is_array($queue) || $queue === []) {
 
 try {
     $normalizedQueue = pdf_normalize_queue($queue);
+    // Today the client sends the merged PDF bytes. Replace this handoff with a qpdf command
+    // once the server-side queue builder is ready to assemble pages directly.
     $binary = pdf_decode_binary_payload($base64);
     $output = pdf_register_output($outputName, $binary);
 } catch (RuntimeException $exception) {
