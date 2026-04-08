@@ -18,15 +18,15 @@ render_layout('PDF Tools', function (): void {
 
             <section class="mode-grid">
                 <button class="tool-card tool-card-minimal is-active" type="button" data-tool-mode="merge">
-                    <span class="tool-icon" aria-hidden="true">◫</span>
+                    <span class="tool-icon" aria-hidden="true"><?= render_icon('merge') ?></span>
                     <span class="tool-subtitle">Merge PDF</span>
                 </button>
                 <button class="tool-card tool-card-minimal" type="button" data-tool-mode="reorder">
-                    <span class="tool-icon" aria-hidden="true">↕</span>
+                    <span class="tool-icon" aria-hidden="true"><?= render_icon('reorder') ?></span>
                     <span class="tool-subtitle">Reorder PDF</span>
                 </button>
                 <button class="tool-card tool-card-minimal" type="button" data-tool-mode="mix">
-                    <span class="tool-icon" aria-hidden="true">⊞</span>
+                    <span class="tool-icon" aria-hidden="true"><?= render_icon('mix') ?></span>
                     <span class="tool-subtitle">Custom Mix</span>
                 </button>
             </section>

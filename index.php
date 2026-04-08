@@ -14,7 +14,7 @@ render_layout('Dashboard', function () use ($tools): void {
             <section class="tool-grid tool-grid-minimal">
             <?php foreach ($tools as $tool): ?>
                 <a class="tool-card tool-card-minimal<?= strtolower($tool['status']) === 'planned' ? ' is-planned' : '' ?>" href="<?= h($tool['href']) ?>" aria-label="<?= h($tool['title']) ?>">
-                    <span class="tool-icon" aria-hidden="true"><?= h($tool['icon'] ?? '•') ?></span>
+                    <span class="tool-icon" aria-hidden="true"><?= render_icon((string) ($tool['icon'] ?? 'pdf')) ?></span>
                     <span class="tool-subtitle"><?= h($tool['title']) ?></span>
                 </a>
             <?php endforeach; ?>
