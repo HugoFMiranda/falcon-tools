@@ -131,10 +131,11 @@ function renderUploads(elements) {
     pdfState.uploads.forEach((upload) => {
         const card = document.createElement('article');
         card.className = 'upload-item';
+        const pageLabel = Number.isInteger(upload.page_count) ? ` | ${upload.page_count} pages` : '';
         card.innerHTML = `
             <div>
                 <div class="upload-title">${escapeHtml(upload.original_name)}</div>
-                <div class="upload-meta">${formatBytes(upload.size)} | Uploaded ${formatDate(upload.uploaded_at)}</div>
+                <div class="upload-meta">${formatBytes(upload.size)}${pageLabel} | Uploaded ${formatDate(upload.uploaded_at)}</div>
             </div>
             <div class="upload-actions">
                 <button class="button button-secondary" type="button">Browse pages</button>
@@ -276,17 +277,22 @@ async function handleExport(elements) {
             throw new Error(processPayload.error || 'Queue validation failed.');
         }
 
-        const mergedBytes = await buildMergedPdf();
+        const exportRequest = {
+            queue: pdfState.queue,
+            outputName: elements.outputName.value || 'falcon-merged.pdf',
+        };
+
+        if (!pdfState.processor || !pdfState.processor.available) {
+            const mergedBytes = await buildMergedPdf();
+            exportRequest.mergedDocumentBase64 = bytesToBase64(mergedBytes);
+        }
+
         const exportResponse = await fetch(window.FALCON_TOOLS.endpoints.export, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                queue: pdfState.queue,
-                outputName: elements.outputName.value || 'falcon-merged.pdf',
-                mergedDocumentBase64: bytesToBase64(mergedBytes),
-            }),
+            body: JSON.stringify(exportRequest),
         });
         const exportPayload = await exportResponse.json();
 

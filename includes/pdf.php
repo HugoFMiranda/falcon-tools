@@ -108,6 +108,7 @@ function pdf_register_upload(array $file): array
         'original_name' => $originalName,
         'stored_name' => $storedName,
         'size' => (int) $file['size'],
+        'page_count' => pdf_extract_page_count($destination),
         'path' => $destination,
         'uploaded_at' => date(DATE_ATOM),
         'file_url' => url_for('/api/pdf/file.php?id=' . rawurlencode($uploadId)),
@@ -127,6 +128,7 @@ function pdf_public_upload_record(array $record): array
         'original_name' => $record['original_name'],
         'stored_name' => $record['stored_name'],
         'size' => $record['size'],
+        'page_count' => $record['page_count'] ?? null,
         'uploaded_at' => $record['uploaded_at'],
         'file_url' => $record['file_url'],
     ];
@@ -169,6 +171,20 @@ function pdf_register_output(string $filename, string $binaryContent): array
     pdf_save_state($state);
 
     return pdf_public_output_record($record);
+}
+
+function pdf_register_output_file(string $filename, string $sourcePath): array
+{
+    if (!is_file($sourcePath)) {
+        throw new RuntimeException('The generated PDF output file could not be found.');
+    }
+
+    $binaryContent = file_get_contents($sourcePath);
+    if ($binaryContent === false) {
+        throw new RuntimeException('Could not read the generated PDF output file.');
+    }
+
+    return pdf_register_output($filename, $binaryContent);
 }
 
 function pdf_public_output_record(array $record): array
@@ -228,10 +244,16 @@ function pdf_normalize_queue(array $queue): array
             throw new RuntimeException('Queue item #' . ($index + 1) . ' refers to an upload that is no longer available.');
         }
 
+        $pageCount = $upload['page_count'] ?? null;
+        if (is_int($pageCount) && $pageNumber > $pageCount) {
+            throw new RuntimeException('Queue item #' . ($index + 1) . ' requests a page outside the uploaded PDF range.');
+        }
+
         $normalized[] = [
             'queue_id' => (string) ($item['queueId'] ?? pdf_make_id('queue')),
             'upload_id' => $uploadId,
             'upload_name' => $upload['original_name'],
+            'upload_path' => $upload['path'],
             'page_number' => $pageNumber,
         ];
     }
@@ -241,22 +263,15 @@ function pdf_normalize_queue(array $queue): array
 
 function pdf_processor_status(): array
 {
-    $binary = (string) app_config('pdf.qpdf_binary', 'qpdf');
-    $escaped = escapeshellarg($binary);
-    $check = stripos(PHP_OS_FAMILY, 'Windows') !== false ? "where $escaped" : "command -v $escaped";
-    $available = false;
-
-    if (function_exists('shell_exec')) {
-        $result = shell_exec($check . ' 2>&1');
-        $available = is_string($result) && trim($result) !== '';
-    }
+    $binary = pdf_find_qpdf_binary();
+    $available = $binary !== null;
 
     return [
-        'engine' => $available ? 'qpdf-detected' : 'browser-fallback',
-        'binary' => $binary,
+        'engine' => $available ? 'qpdf-server' : 'browser-fallback',
+        'binary' => $binary ?? (string) app_config('pdf.qpdf_binary', 'qpdf'),
         'available' => $available,
         'notes' => $available
-            ? 'qpdf was detected on the server, but this MVP still exports from a browser-built PDF payload until the server-side page queue is wired to qpdf.'
+            ? 'qpdf is available. Export can be assembled on the server from the validated page queue.'
             : 'qpdf was not detected. Export currently uses a browser-built PDF payload and stores the result through PHP.',
     ];
 }
@@ -272,4 +287,138 @@ function pdf_decode_binary_payload(string $base64): string
     }
 
     return $decoded;
+}
+
+function pdf_extract_page_count(string $path): ?int
+{
+    $binary = pdf_find_qpdf_binary();
+    if ($binary === null) {
+        return null;
+    }
+
+    [$exitCode, $stdout] = pdf_run_command([
+        $binary,
+        '--show-npages',
+        $path,
+    ]);
+
+    if ($exitCode !== 0) {
+        return null;
+    }
+
+    $pageCount = (int) trim($stdout);
+
+    return $pageCount > 0 ? $pageCount : null;
+}
+
+function pdf_export_queue_with_qpdf(array $normalizedQueue, string $outputName): array
+{
+    $binary = pdf_find_qpdf_binary();
+    if ($binary === null) {
+        throw new RuntimeException('qpdf is not available on this server.');
+    }
+
+    $tempOutputPath = app_config('storage.temp') . DIRECTORY_SEPARATOR . pdf_make_id('qpdf') . '.pdf';
+    $command = [$binary, '--empty', '--pages'];
+
+    foreach ($normalizedQueue as $item) {
+        $command[] = $item['upload_path'];
+        $command[] = (string) $item['page_number'];
+    }
+
+    $command[] = '--';
+    $command[] = $tempOutputPath;
+
+    [$exitCode, $stdout, $stderr] = pdf_run_command($command);
+
+    if ($exitCode !== 0 || !is_file($tempOutputPath)) {
+        @unlink($tempOutputPath);
+        throw new RuntimeException('qpdf export failed. ' . trim($stderr !== '' ? $stderr : $stdout));
+    }
+
+    try {
+        return pdf_register_output_file($outputName, $tempOutputPath);
+    } finally {
+        @unlink($tempOutputPath);
+    }
+}
+
+function pdf_find_qpdf_binary(): ?string
+{
+    static $resolved = false;
+    static $binaryPath = null;
+
+    if ($resolved) {
+        return $binaryPath;
+    }
+
+    $configured = trim((string) app_config('pdf.qpdf_binary', 'qpdf'));
+
+    if ($configured !== '' && preg_match('/[\\\\\\/]/', $configured) === 1 && is_file($configured)) {
+        $resolved = true;
+        $binaryPath = $configured;
+
+        return $binaryPath;
+    }
+
+    $locator = PHP_OS_FAMILY === 'Windows'
+        ? 'where ' . escapeshellarg($configured)
+        : 'command -v ' . escapeshellarg($configured);
+
+    [$exitCode, $stdout] = pdf_run_shell_lookup($locator);
+
+    if ($exitCode !== 0) {
+        $resolved = true;
+        $binaryPath = null;
+
+        return null;
+    }
+
+    $lines = preg_split('/\R+/', trim($stdout)) ?: [];
+    foreach ($lines as $line) {
+        $candidate = trim($line);
+        if ($candidate === '' || str_starts_with(strtoupper($candidate), 'INFO:')) {
+            continue;
+        }
+
+        if (PHP_OS_FAMILY !== 'Windows' || is_file($candidate)) {
+            $resolved = true;
+            $binaryPath = $candidate;
+
+            return $binaryPath;
+        }
+    }
+
+    $resolved = true;
+    $binaryPath = null;
+
+    return null;
+}
+
+function pdf_run_shell_lookup(string $command): array
+{
+    if (!function_exists('exec')) {
+        return [1, ''];
+    }
+
+    $output = [];
+    $exitCode = 1;
+    exec($command . ' 2>&1', $output, $exitCode);
+
+    return [$exitCode, trim(implode(PHP_EOL, $output))];
+}
+
+function pdf_run_command(array $parts): array
+{
+    if (!function_exists('exec')) {
+        throw new RuntimeException('PHP exec() is required for qpdf integration.');
+    }
+
+    $escapedCommand = implode(' ', array_map(static fn (string $part): string => escapeshellarg($part), $parts));
+    $output = [];
+    $exitCode = 1;
+    exec($escapedCommand . ' 2>&1', $output, $exitCode);
+    $stdout = trim(implode(PHP_EOL, $output));
+
+    return [$exitCode, $stdout, $stdout];
 }
