@@ -1,24 +1,24 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
 :root {
-    --bg: #f3f5f8;
-    --bg-deep: #eceff3;
+    --bg: #f7f7f4;
+    --bg-deep: #eff0ec;
     --panel: rgba(255, 255, 255, 0.68);
     --panel-strong: rgba(255, 255, 255, 0.84);
-    --line: rgba(15, 23, 42, 0.08);
-    --line-strong: rgba(15, 23, 42, 0.16);
-    --ink: #111827;
-    --muted: #667085;
-    --accent: #2563eb;
-    --accent-soft: rgba(37, 99, 235, 0.1);
-    --accent-soft-strong: rgba(37, 99, 235, 0.16);
+    --line: rgba(30, 34, 31, 0.08);
+    --line-strong: rgba(30, 34, 31, 0.15);
+    --ink: #171a19;
+    --muted: #70756f;
+    --accent: #3b82f6;
+    --accent-soft: rgba(59, 130, 246, 0.08);
+    --accent-soft-strong: rgba(59, 130, 246, 0.14);
     --warn: #b06d2c;
     --radius: 30px;
     --radius-sm: 22px;
     --shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
     --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.04);
     --max-width: 1180px;
-    --font-sans: "Manrope", "Segoe UI", "Helvetica Neue", sans-serif;
+    --font-sans: "Plus Jakarta Sans", "Segoe UI", "Helvetica Neue", sans-serif;
     --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 }
 
@@ -36,9 +36,9 @@ body {
     color: var(--ink);
     font-family: var(--font-sans);
     background:
-        radial-gradient(circle at 20% 18%, rgba(37, 99, 235, 0.10), transparent 22%),
-        radial-gradient(circle at 82% 12%, rgba(15, 23, 42, 0.07), transparent 26%),
-        radial-gradient(circle at 50% 100%, rgba(148, 163, 184, 0.16), transparent 28%),
+        radial-gradient(circle at 18% 16%, rgba(59, 130, 246, 0.08), transparent 22%),
+        radial-gradient(circle at 82% 10%, rgba(15, 23, 42, 0.05), transparent 24%),
+        radial-gradient(circle at 50% 100%, rgba(120, 130, 120, 0.08), transparent 28%),
         linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
     position: relative;
 }
@@ -114,7 +114,7 @@ h3 {
     font-size: clamp(4rem, 11vw, 7.4rem);
     font-weight: 800;
     line-height: 0.9;
-    color: #0f172a;
+    color: #131716;
 }
 
 .page-heading {
@@ -224,7 +224,7 @@ h3 {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(241, 245, 249, 0.84));
     border: 1px solid rgba(15, 23, 42, 0.06);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), var(--shadow-soft);
-    color: #1e293b;
+    color: #232a28;
     transition: transform 220ms ease, color 220ms ease, background 220ms ease;
 }
 

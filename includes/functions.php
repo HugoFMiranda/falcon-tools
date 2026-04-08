@@ -112,6 +112,7 @@ function render_layout(string $title, callable $content, array $options = []): v
         <main class="site-main">
             <?php $content(); ?>
         </main>
+        <script src="<?= h(asset_url('vendor/lucide/lucide.min.js')) ?>" defer></script>
         <script src="<?= h(asset_url('js/app.js')) ?>" defer></script>
     </body>
     </html><?php
@@ -158,14 +159,16 @@ function tool_catalog(): array
 function render_icon(string $name): string
 {
     $icons = [
-        'pdf' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3.5h6.5L20.5 9v10.25A2.25 2.25 0 0 1 18.25 21.5H8A2.5 2.5 0 0 1 5.5 19V6A2.5 2.5 0 0 1 8 3.5Zm6 1.75V9h4.25" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.25 16.75h2.1c1.1 0 1.82-.68 1.82-1.67 0-.98-.72-1.65-1.82-1.65h-2.1v3.32Zm0 0v1.5m5.1-4.82v4.82m0-4.82h1.15c1.37 0 2.26.93 2.26 2.41 0 1.49-.89 2.41-2.26 2.41h-1.15m-5.1-1.02h1.78m8.08-3.8h-1.92v4.82" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        'image' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10" r="1.6" fill="currentColor"/><path d="m7 16 3.2-3.2a1.1 1.1 0 0 1 1.56 0L14 15l1.7-1.7a1.1 1.1 0 0 1 1.56 0L20 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        'gif' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.3 13.2h1.9v2H7.8c-1.2 0-2-.82-2-2.12v-1.2c0-1.3.8-2.12 2-2.12h1.4m3.2.08v5.36m2.3-5.36v5.36m0-2.42h1.86" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        'video' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="13" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m16.5 10 4-2.2v8.4l-4-2.2V10Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
-        'merge' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5.5h4.5M7 9h6.5M7 12.5h4.5M7 18.5h4.5M13.5 15h3m0 0-1.7-1.7M16.5 15l-1.7 1.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="4" y="3.5" width="8" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
-        'reorder' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5h8M9 12h8M9 17.5h8M5.5 4.5v15m0 0-2-2m2 2 2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        'mix' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 7.5h4v4h-4zm7 0h4v4h-4zm-7 7h4v4h-4zm7 0h4v4h-4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M10.5 9.5h3m-3 5h3m-5-3v3m9-8v3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+        'pdf' => 'file-text',
+        'image' => 'image',
+        'gif' => 'film',
+        'video' => 'video',
+        'files' => 'files',
+        'arrow-up-down' => 'arrow-up-down',
+        'blend' => 'blend',
     ];
 
-    return $icons[$name] ?? $icons['pdf'];
+    $icon = $icons[$name] ?? 'file-text';
+
+    return '<span data-lucide="' . h($icon) . '"></span>';
 }

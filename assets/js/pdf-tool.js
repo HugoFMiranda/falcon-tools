@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function bootstrapWorkspace(elements) {
+    pdfState.activeMode = window.FALCON_TOOLS.defaultMode || 'merge';
     await loadServerProcessorState(elements);
     restoreWorkspace(elements);
     updateExportModeNote(elements);
@@ -774,7 +775,7 @@ function restoreWorkspace(elements) {
             elements.exportMode.value = snapshot.exportMode;
         }
 
-        if (typeof snapshot.activeMode === 'string') {
+        if (!window.FALCON_TOOLS.defaultMode && typeof snapshot.activeMode === 'string') {
             pdfState.activeMode = snapshot.activeMode;
         }
 
