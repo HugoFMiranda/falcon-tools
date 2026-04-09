@@ -44,7 +44,12 @@ function render_merge_workspace(string $mode = 'merge'): void
                 <aside class="workspace-card upload-column stack-gap">
                     <div class="column-heading">
                         <h2>Files</h2>
-                        <span class="mono-note" data-upload-count>0 loaded</span>
+                        <div class="column-heading-actions">
+                            <span class="mono-note" data-upload-count>0 loaded</span>
+                            <button class="subtle-icon-button" type="button" data-reset-button aria-label="Reset files" title="Reset files">
+                                <span data-lucide="brush-cleaning"></span>
+                            </button>
+                        </div>
                     </div>
 
                     <label class="upload-launch" for="pdf-files">
@@ -66,7 +71,6 @@ function render_merge_workspace(string $mode = 'merge'): void
                     <div class="merge-groups-empty" data-page-browser-empty>No PDFs loaded.</div>
                     <div class="merge-groups" data-page-groups hidden></div>
                     <div class="footer-action-bar">
-                        <button class="button button-secondary" type="button" data-reset-button>Reset</button>
                         <label class="field-group footer-field">
                             <span>Output</span>
                             <input type="text" value="falcon-merged.pdf" data-output-name>
@@ -105,7 +109,12 @@ function render_reorder_workspace(): void
                 <aside class="workspace-card upload-column stack-gap">
                     <div class="column-heading">
                         <h2>Files</h2>
-                        <span class="mono-note" data-upload-count>0 loaded</span>
+                        <div class="column-heading-actions">
+                            <span class="mono-note" data-upload-count>0 loaded</span>
+                            <button class="subtle-icon-button" type="button" data-reset-button aria-label="Reset files" title="Reset files">
+                                <span data-lucide="brush-cleaning"></span>
+                            </button>
+                        </div>
                     </div>
 
                     <label class="upload-launch" for="reorder-pdf-files">
@@ -127,7 +136,6 @@ function render_reorder_workspace(): void
                     <div class="merge-groups-empty" data-canvas-empty>No PDFs loaded.</div>
                     <div class="reorder-canvas" data-reorder-canvas hidden></div>
                     <div class="footer-action-bar">
-                        <button class="button button-secondary" type="button" data-reset-button>Reset</button>
                         <label class="field-group footer-field">
                             <span>Output</span>
                             <input type="text" value="falcon-reordered.pdf" data-output-name>

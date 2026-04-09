@@ -25,6 +25,10 @@
     box-sizing: border-box;
 }
 
+[hidden] {
+    display: none !important;
+}
+
 html {
     scroll-behavior: smooth;
 }
@@ -290,6 +294,12 @@ h3 {
     transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
 }
 
+.column-heading-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .upload-launch:hover {
     transform: translateY(-1px);
     border-color: rgba(59, 130, 246, 0.24);
@@ -370,6 +380,31 @@ h3 {
     grid-column: 1 / -1;
 }
 
+.subtle-icon-button {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.subtle-icon-button:hover {
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.66);
+    border-color: var(--line);
+}
+
+.subtle-icon-button svg {
+    width: 16px;
+    height: 16px;
+}
+
 .upload-title,
 .pdf-group-head h3 {
     min-width: 0;
@@ -439,9 +474,13 @@ h3 {
     border-radius: var(--radius-sm);
 }
 
+.export-result:empty {
+    display: none !important;
+}
+
 .footer-action-bar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px;
     align-items: end;
 }
