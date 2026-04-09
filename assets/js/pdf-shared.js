@@ -48,7 +48,7 @@ export async function ensurePagePreviews(upload, scale = 0.34) {
 }
 
 export async function buildPdfFromSequence(sequence, uploadsById, outputName) {
-    const { PDFDocument } = window.PDFLib;
+    const { PDFDocument, degrees } = window.PDFLib;
     const mergedPdf = await PDFDocument.create();
     const sourceCache = new Map();
 
@@ -64,6 +64,11 @@ export async function buildPdfFromSequence(sequence, uploadsById, outputName) {
 
         const sourcePdf = sourceCache.get(item.uploadId);
         const [page] = await mergedPdf.copyPages(sourcePdf, [item.pageNumber - 1]);
+        const rotation = normalizeRotation(item.rotation ?? 0);
+        if (rotation !== 0) {
+            const baseRotation = page.getRotation().angle ?? 0;
+            page.setRotation(degrees(normalizeRotation(baseRotation + rotation)));
+        }
         mergedPdf.addPage(page);
     }
 
@@ -117,6 +122,11 @@ export function makeId(prefix) {
     }
 
     return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+export function normalizeRotation(value) {
+    const normalized = Number(value) || 0;
+    return ((normalized % 360) + 360) % 360;
 }
 
 export function renderFeedback(element, message, isError = false) {

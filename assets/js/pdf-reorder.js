@@ -5,6 +5,7 @@ import {
     ensurePagePreviews,
     escapeHtml,
     formatBytes,
+    normalizeRotation,
     renderFeedback,
 } from './pdf-shared.js';
 
@@ -141,13 +142,29 @@ function renderCanvas(elements) {
         article.draggable = true;
         article.dataset.pageId = item.id;
         article.innerHTML = `
-            <img src="${item.preview}" alt="Preview of page ${item.pageNumber} from ${escapeHtml(item.uploadName)}">
+            <span class="page-preview-frame">
+                <img class="page-preview-media" src="${item.preview}" alt="Preview of page ${item.pageNumber} from ${escapeHtml(item.uploadName)}" style="--page-rotation:${item.rotation}deg;">
+            </span>
             <div class="reorder-tile-body">
                 <div class="upload-title">${index + 1}. ${escapeHtml(item.uploadName)}</div>
-                <div class="page-card-meta">Page ${item.pageNumber}</div>
+                <div class="page-tile-toolbar">
+                    <button class="tile-icon-button" type="button" data-action="rotate-left" aria-label="Rotate left">↺</button>
+                    <span class="page-card-meta">Page ${item.pageNumber} · ${formatRotationLabel(item.rotation)}</span>
+                    <button class="tile-icon-button" type="button" data-action="rotate-right" aria-label="Rotate right">↻</button>
+                </div>
             </div>
         `;
 
+        article.querySelector('[data-action="rotate-left"]').addEventListener('click', (event) => {
+            event.stopPropagation();
+            rotateSequenceItem(item.id, -90);
+            updateReorderTile(article, item.id);
+        });
+        article.querySelector('[data-action="rotate-right"]').addEventListener('click', (event) => {
+            event.stopPropagation();
+            rotateSequenceItem(item.id, 90);
+            updateReorderTile(article, item.id);
+        });
         article.addEventListener('dragstart', (event) => handlePageDragStart(event, item.id));
         article.addEventListener('dragover', (event) => handlePageDragOver(event, item.id, elements));
         article.addEventListener('dragleave', (event) => handlePageDragLeave(event, item.id, elements));
@@ -170,6 +187,7 @@ async function appendUploadPages(upload) {
             uploadName: upload.name,
             pageNumber: page.pageNumber,
             preview: page.preview,
+            rotation: 0,
         });
     });
 }
@@ -305,6 +323,25 @@ function triggerDownload(url, filename) {
     link.remove();
 }
 
+function rotateSequenceItem(itemId, delta) {
+    const item = state.pageSequence.find((entry) => entry.id === itemId);
+    if (!item) {
+        return;
+    }
+
+    item.rotation = normalizeRotation((item.rotation ?? 0) + delta);
+}
+
+function updateReorderTile(tile, itemId) {
+    const item = state.pageSequence.find((entry) => entry.id === itemId);
+    if (!item) {
+        return;
+    }
+
+    tile.querySelector('.page-preview-media').style.setProperty('--page-rotation', `${item.rotation}deg`);
+    tile.querySelector('.page-card-meta').textContent = `Page ${item.pageNumber} · ${formatRotationLabel(item.rotation)}`;
+}
+
 function resetWorkspace(elements) {
     if (state.exportUrl) {
         URL.revokeObjectURL(state.exportUrl);
@@ -339,4 +376,8 @@ function getDropPlacement(event, element) {
     const bounds = element.getBoundingClientRect();
     const midpointX = bounds.left + (bounds.width / 2);
     return event.clientX >= midpointX ? 'after' : 'before';
+}
+
+function formatRotationLabel(rotation) {
+    return rotation === 0 ? '0°' : `${rotation}°`;
 }

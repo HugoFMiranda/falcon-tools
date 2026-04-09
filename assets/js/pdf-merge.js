@@ -5,12 +5,14 @@ import {
     ensurePagePreviews,
     escapeHtml,
     formatBytes,
+    normalizeRotation,
     renderFeedback,
 } from './pdf-shared.js';
 
 const state = {
     uploads: [],
     selectedPages: new Set(),
+    pageRotations: new Map(),
     exportUrl: null,
     renderVersion: 0,
 };
@@ -156,15 +158,31 @@ async function renderSelectionGroups(elements) {
             article.className = `page-tile${state.selectedPages.has(key) ? ' is-selected' : ''}`;
             article.innerHTML = `
                 <button class="page-tile-hit" type="button">
-                    <img src="${page.preview}" alt="Preview of page ${page.pageNumber} from ${escapeHtml(upload.name)}">
-                    <span class="page-card-meta">Page ${page.pageNumber}</span>
+                    <span class="page-preview-frame">
+                        <img class="page-preview-media" src="${page.preview}" alt="Preview of page ${page.pageNumber} from ${escapeHtml(upload.name)}" style="--page-rotation:${getPageRotation(upload.id, page.pageNumber)}deg;">
+                    </span>
                 </button>
+                <div class="page-tile-toolbar">
+                    <button class="tile-icon-button" type="button" data-action="rotate-left" aria-label="Rotate left">↺</button>
+                    <span class="page-card-meta">Page ${page.pageNumber} · ${formatRotationLabel(getPageRotation(upload.id, page.pageNumber))}</span>
+                    <button class="tile-icon-button" type="button" data-action="rotate-right" aria-label="Rotate right">↻</button>
+                </div>
             `;
 
             article.querySelector('button').addEventListener('click', () => {
                 togglePageSelection(upload.id, page.pageNumber);
                 article.classList.toggle('is-selected', state.selectedPages.has(key));
                 elements.selectionCount.textContent = `${state.selectedPages.size} selected`;
+            });
+            article.querySelector('[data-action="rotate-left"]').addEventListener('click', (event) => {
+                event.stopPropagation();
+                rotatePage(upload.id, page.pageNumber, -90);
+                updateTileRotation(article, upload.id, page.pageNumber);
+            });
+            article.querySelector('[data-action="rotate-right"]').addEventListener('click', (event) => {
+                event.stopPropagation();
+                rotatePage(upload.id, page.pageNumber, 90);
+                updateTileRotation(article, upload.id, page.pageNumber);
             });
 
             pageGrid.append(article);
@@ -212,6 +230,12 @@ function removeUpload(uploadId, elements) {
         }
     });
 
+    Array.from(state.pageRotations.keys()).forEach((key) => {
+        if (key.startsWith(`${uploadId}:`)) {
+            state.pageRotations.delete(key);
+        }
+    });
+
     renderUploads(elements);
     void renderSelectionGroups(elements);
 }
@@ -227,6 +251,7 @@ async function exportMerge(elements) {
                     uploadId: upload.id,
                     uploadName: upload.name,
                     pageNumber,
+                    rotation: getPageRotation(upload.id, pageNumber),
                 });
             }
         }
@@ -252,6 +277,7 @@ function resetWorkspace(elements) {
 
     state.uploads = [];
     state.selectedPages.clear();
+    state.pageRotations.clear();
     state.exportUrl = null;
     elements.uploadInput.value = '';
     clearFeedback(elements.feedback);
@@ -261,6 +287,35 @@ function resetWorkspace(elements) {
 
 function pageKey(uploadId, pageNumber) {
     return `${uploadId}:${pageNumber}`;
+}
+
+function getPageRotation(uploadId, pageNumber) {
+    return state.pageRotations.get(pageKey(uploadId, pageNumber)) ?? 0;
+}
+
+function rotatePage(uploadId, pageNumber, delta) {
+    const key = pageKey(uploadId, pageNumber);
+    const nextRotation = normalizeRotation(getPageRotation(uploadId, pageNumber) + delta);
+
+    if (nextRotation === 0) {
+        state.pageRotations.delete(key);
+        return;
+    }
+
+    state.pageRotations.set(key, nextRotation);
+}
+
+function updateTileRotation(tile, uploadId, pageNumber) {
+    const rotation = getPageRotation(uploadId, pageNumber);
+    const preview = tile.querySelector('.page-preview-media');
+    const label = tile.querySelector('.page-card-meta');
+
+    preview.style.setProperty('--page-rotation', `${rotation}deg`);
+    label.textContent = `Page ${pageNumber} · ${formatRotationLabel(rotation)}`;
+}
+
+function formatRotationLabel(rotation) {
+    return rotation === 0 ? '0°' : `${rotation}°`;
 }
 
 function triggerDownload(url, filename) {
