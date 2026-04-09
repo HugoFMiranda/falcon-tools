@@ -29,4 +29,6 @@ render_layout('PDF Tools', function (): void {
         </section>
     </section>
     <?php
-});
+}, [
+    'main_class' => 'site-main-wide',
+]);

@@ -7,4 +7,6 @@ require_once __DIR__ . '/../../includes/pdf-workspace.php';
 
 render_layout('Custom Mix', function (): void {
     render_merge_workspace('mix');
-});
+}, [
+    'main_class' => 'site-main-wide',
+]);

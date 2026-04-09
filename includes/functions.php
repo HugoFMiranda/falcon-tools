@@ -99,6 +99,7 @@ function render_layout(string $title, callable $content, array $options = []): v
 {
     $appName = (string) app_config('app.name', 'Falcon Tools');
     $pageTitle = $title . ' | ' . $appName;
+    $mainClass = trim('site-main ' . (is_string($options['main_class'] ?? null) ? $options['main_class'] : ''));
 
     ?><!DOCTYPE html>
     <html lang="en">
@@ -109,7 +110,7 @@ function render_layout(string $title, callable $content, array $options = []): v
         <link rel="stylesheet" href="<?= h(asset_url('css/app.css')) ?>">
     </head>
     <body>
-        <main class="site-main">
+        <main class="<?= h($mainClass) ?>">
             <?php $content(); ?>
         </main>
         <script src="<?= h(asset_url('vendor/lucide/lucide.min.js')) ?>" defer></script>

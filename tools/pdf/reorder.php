@@ -7,4 +7,6 @@ require_once __DIR__ . '/../../includes/pdf-workspace.php';
 
 render_layout('Reorder PDF', function (): void {
     render_reorder_workspace();
-});
+}, [
+    'main_class' => 'site-main-wide',
+]);

@@ -7,4 +7,6 @@ require_once __DIR__ . '/../../includes/pdf-workspace.php';
 
 render_layout('Merge PDF', function (): void {
     render_merge_workspace('merge');
-});
+}, [
+    'main_class' => 'site-main-wide',
+]);
