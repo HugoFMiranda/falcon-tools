@@ -295,6 +295,21 @@ function pdf_processor_status(): array
     ];
 }
 
+function pdf_webpage_processor_status(): array
+{
+    $binary = pdf_find_browser_binary();
+    $available = $binary !== null;
+
+    return [
+        'engine' => $available ? 'chrome-headless' : 'unavailable',
+        'binary' => $binary ?? (string) app_config('pdf.browser_binary', ''),
+        'available' => $available,
+        'notes' => $available
+            ? 'A Chromium-based browser is available for webpage-to-PDF rendering.'
+            : 'No supported Chromium-based browser was detected for webpage-to-PDF rendering.',
+    ];
+}
+
 function pdf_decode_binary_payload(string $base64): string
 {
     // The MVP compiles the final PDF in the browser, then hands the binary back to PHP for storage.
@@ -414,6 +429,121 @@ function pdf_find_qpdf_binary(): ?string
     return null;
 }
 
+function pdf_find_browser_binary(): ?string
+{
+    static $resolved = false;
+    static $binaryPath = null;
+
+    if ($resolved) {
+        return $binaryPath;
+    }
+
+    $configured = trim((string) app_config('pdf.browser_binary', ''));
+    $candidates = [];
+
+    if ($configured !== '') {
+        $candidates[] = $configured;
+    }
+
+    if (PHP_OS_FAMILY === 'Windows') {
+        array_push(
+            $candidates,
+            'chrome',
+            'msedge',
+            'chromium',
+            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+            'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+            'C:\\Program Files\\Chromium\\Application\\chrome.exe',
+            'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+        );
+    } else {
+        array_push($candidates, 'google-chrome', 'chromium', 'chromium-browser', 'microsoft-edge');
+    }
+
+    foreach ($candidates as $candidate) {
+        $resolvedCandidate = pdf_resolve_binary_candidate($candidate);
+        if ($resolvedCandidate !== null) {
+            $resolved = true;
+            $binaryPath = $resolvedCandidate;
+
+            return $binaryPath;
+        }
+    }
+
+    $resolved = true;
+    $binaryPath = null;
+
+    return null;
+}
+
+function pdf_render_webpage_to_pdf(string $url, string $outputName, array $options = []): array
+{
+    $browserBinary = pdf_find_browser_binary();
+    if ($browserBinary === null) {
+        throw new RuntimeException('Chrome or Chromium is not available on this server.');
+    }
+
+    $normalizedUrl = pdf_normalize_webpage_url($url);
+    $waitMs = max(0, min(15000, (int) ($options['wait_ms'] ?? 4000)));
+    $outputFile = app_config('storage.temp') . DIRECTORY_SEPARATOR . pdf_make_id('webpage') . '.pdf';
+    $profileDir = app_config('storage.temp') . DIRECTORY_SEPARATOR . pdf_make_id('browser-profile');
+
+    if (!is_dir($profileDir) && !mkdir($profileDir, 0775, true) && !is_dir($profileDir)) {
+        throw new RuntimeException('Could not create the temporary browser profile directory.');
+    }
+
+    $command = [
+        $browserBinary,
+        '--headless=new',
+        '--disable-gpu',
+        '--hide-scrollbars',
+        '--no-first-run',
+        '--disable-extensions',
+        '--run-all-compositor-stages-before-draw',
+        '--window-size=1440,2200',
+        '--user-data-dir=' . $profileDir,
+        '--virtual-time-budget=' . $waitMs,
+        '--print-to-pdf=' . $outputFile,
+        $normalizedUrl,
+    ];
+
+    [$exitCode, $stdout, $stderr] = pdf_run_command($command);
+
+    try {
+        if ($exitCode !== 0 || !is_file($outputFile)) {
+            throw new RuntimeException('Webpage rendering failed. ' . trim($stderr !== '' ? $stderr : $stdout));
+        }
+
+        return pdf_register_output_file($outputName, $outputFile);
+    } finally {
+        @unlink($outputFile);
+        pdf_delete_directory($profileDir);
+    }
+}
+
+function pdf_normalize_webpage_url(string $url): string
+{
+    $normalized = trim($url);
+    if ($normalized === '') {
+        throw new RuntimeException('A webpage URL is required.');
+    }
+
+    if (!preg_match('#^https?://#i', $normalized)) {
+        $normalized = 'https://' . $normalized;
+    }
+
+    if (!filter_var($normalized, FILTER_VALIDATE_URL)) {
+        throw new RuntimeException('The webpage URL is not valid.');
+    }
+
+    $scheme = strtolower((string) parse_url($normalized, PHP_URL_SCHEME));
+    if (!in_array($scheme, ['http', 'https'], true)) {
+        throw new RuntimeException('Only http and https webpages are supported.');
+    }
+
+    return $normalized;
+}
+
 function pdf_run_shell_lookup(string $command): array
 {
     if (!function_exists('exec')) {
@@ -440,4 +570,67 @@ function pdf_run_command(array $parts): array
     $stdout = trim(implode(PHP_EOL, $output));
 
     return [$exitCode, $stdout, $stdout];
+}
+
+function pdf_resolve_binary_candidate(string $candidate): ?string
+{
+    $candidate = trim($candidate);
+    if ($candidate === '') {
+        return null;
+    }
+
+    if (preg_match('/[\\\\\\/]/', $candidate) === 1 && is_file($candidate)) {
+        return $candidate;
+    }
+
+    $locator = PHP_OS_FAMILY === 'Windows'
+        ? 'where ' . escapeshellarg($candidate)
+        : 'command -v ' . escapeshellarg($candidate);
+
+    [$exitCode, $stdout] = pdf_run_shell_lookup($locator);
+    if ($exitCode !== 0) {
+        return null;
+    }
+
+    $lines = preg_split('/\R+/', trim($stdout)) ?: [];
+    foreach ($lines as $line) {
+        $resolved = trim($line);
+        if ($resolved === '' || str_starts_with(strtoupper($resolved), 'INFO:')) {
+            continue;
+        }
+
+        if (PHP_OS_FAMILY !== 'Windows' || is_file($resolved)) {
+            return $resolved;
+        }
+    }
+
+    return null;
+}
+
+function pdf_delete_directory(string $directory): void
+{
+    if (!is_dir($directory)) {
+        return;
+    }
+
+    $items = scandir($directory);
+    if ($items === false) {
+        return;
+    }
+
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') {
+            continue;
+        }
+
+        $path = $directory . DIRECTORY_SEPARATOR . $item;
+        if (is_dir($path)) {
+            pdf_delete_directory($path);
+            continue;
+        }
+
+        @unlink($path);
+    }
+
+    @rmdir($directory);
 }

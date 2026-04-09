@@ -167,6 +167,7 @@ function render_icon(string $name): string
         'files' => 'files',
         'arrow-up-down' => 'arrow-up-down',
         'minimize-2' => 'minimize-2',
+        'globe' => 'globe',
         'blend' => 'blend',
     ];
 

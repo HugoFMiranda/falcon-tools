@@ -16,6 +16,7 @@ return [
     ],
     'pdf' => [
         'qpdf_binary' => 'qpdf',
+        'browser_binary' => '',
         'max_upload_size' => 25 * 1024 * 1024,
         'allowed_mime_types' => [
             'application/pdf',

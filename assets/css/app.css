@@ -88,7 +88,8 @@ a {
 }
 
 button,
-input {
+input,
+select {
     font: inherit;
 }
 
@@ -488,6 +489,12 @@ h3 {
     color: #fff;
 }
 
+.button:disabled {
+    opacity: 0.56;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .button-secondary {
     background: rgba(255, 255, 255, 0.66);
     border-color: var(--line);
@@ -517,7 +524,23 @@ h3 {
     color: var(--ink);
 }
 
+.field-group select {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--ink);
+    appearance: none;
+}
+
 .field-group input:focus {
+    outline: none;
+    border-color: rgba(59, 130, 246, 0.24);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08);
+}
+
+.field-group select:focus {
     outline: none;
     border-color: rgba(59, 130, 246, 0.24);
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08);

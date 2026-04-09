@@ -23,6 +23,12 @@ function pdf_mode_catalog(): array
             'icon' => 'minimize-2',
             'href' => url_for('/tools/pdf/compress.php'),
         ],
+        'webpage' => [
+            'title' => 'Webpage to PDF',
+            'description' => 'Render a webpage into a PDF.',
+            'icon' => 'globe',
+            'href' => url_for('/tools/pdf/webpage.php'),
+        ],
         'mix' => [
             'title' => 'Custom Mix',
             'description' => 'Compose a hand-picked page sequence.',
@@ -243,5 +249,77 @@ function render_compress_workspace(): void
 
     <script src="<?= h(asset_url('vendor/pdf-lib/pdf-lib.min.js')) ?>" defer></script>
     <script src="<?= h(asset_url('js/pdf-compress.js')) ?>" type="module"></script>
+    <?php
+}
+
+function render_webpage_workspace(): void
+{
+    $processor = pdf_webpage_processor_status();
+    ?>
+    <section class="center-shell center-shell-top">
+        <section class="pdf-workspace pdf-workspace-detail pdf-workspace-wide" data-pdf-tool="webpage">
+            <header class="page-heading">
+                <a class="back-link" href="<?= h(url_for('/tools/pdf/')) ?>">/ pdf tools</a>
+                <div class="page-heading-copy">
+                    <h1 class="page-title">Webpage to PDF</h1>
+                </div>
+            </header>
+
+            <div class="workspace-split">
+                <aside class="workspace-card upload-column stack-gap">
+                    <div class="column-heading">
+                        <h2>Page</h2>
+                        <div class="column-heading-actions">
+                            <span class="mono-note" data-renderer-note><?= h($processor['available'] ? 'renderer ready' : 'renderer missing') ?></span>
+                        </div>
+                    </div>
+
+                    <div class="stack-gap">
+                        <label class="field-group">
+                            <span>URL</span>
+                            <input type="url" placeholder="https://example.com" data-url-input>
+                        </label>
+
+                        <label class="field-group">
+                            <span>Wait</span>
+                            <select data-wait-input>
+                                <option value="2000">Fast</option>
+                                <option value="4000" selected>Balanced</option>
+                                <option value="7000">Slow pages</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="feedback" data-feedback hidden></div>
+                </aside>
+
+                <section class="workspace-card action-column stack-gap">
+                    <div class="action-header">
+                        <h2>Export</h2>
+                        <span class="mono-note" data-status-note><?= h($processor['available'] ? 'ready' : 'unavailable') ?></span>
+                    </div>
+
+                    <div class="compress-empty" data-empty-note><?= h($processor['available'] ? 'Enter a webpage URL.' : 'Install Chrome or Chromium to use this tool.') ?></div>
+
+                    <div class="footer-action-bar">
+                        <label class="field-group footer-field">
+                            <span>Output</span>
+                            <input type="text" value="webpage.pdf" data-output-name>
+                        </label>
+                        <button class="button button-primary" type="button" data-export-button <?= $processor['available'] ? '' : 'disabled' ?>>Create PDF</button>
+                    </div>
+                    <div class="export-result" data-export-result hidden></div>
+                </section>
+            </div>
+        </section>
+    </section>
+
+    <script>
+        window.FALCON_WEBPAGE_TO_PDF = <?= json_encode([
+            'available' => $processor['available'],
+            'notes' => $processor['notes'],
+        ]) ?>;
+    </script>
+    <script src="<?= h(asset_url('js/pdf-webpage.js')) ?>" type="module"></script>
     <?php
 }
