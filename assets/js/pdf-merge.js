@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const elements = {
+        root,
         uploadInput: root.querySelector('[data-upload-input]'),
         uploadLaunch: root.querySelector('.upload-launch'),
         uploadCount: root.querySelector('[data-upload-count]'),
@@ -69,6 +70,7 @@ async function loadFiles(elements) {
 }
 
 function renderUploads(elements) {
+    setEmptyState(elements);
     elements.uploadLaunch.classList.toggle('is-compact', state.uploads.length > 0);
     elements.uploadCount.textContent = `${state.uploads.length} loaded`;
 
@@ -98,6 +100,10 @@ function renderUploads(elements) {
         card.querySelector('[data-action="remove"]').addEventListener('click', () => removeUpload(upload.id, elements));
         elements.uploadList.append(card);
     });
+}
+
+function setEmptyState(elements) {
+    elements.root.dataset.emptyState = state.uploads.length === 0 ? 'true' : 'false';
 }
 
 async function renderSelectionGroups(elements) {

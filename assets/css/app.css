@@ -261,11 +261,13 @@ h3 {
     grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
     gap: 22px;
     align-items: start;
+    transition: grid-template-columns 280ms ease, gap 280ms ease;
 }
 
 .workspace-card {
     border-radius: var(--radius);
     padding: 24px;
+    transition: transform 240ms ease, opacity 240ms ease, box-shadow 240ms ease, border-color 240ms ease;
 }
 
 .stack-gap {
@@ -516,6 +518,52 @@ h3 {
 
 .footer-field {
     min-width: 0;
+}
+
+.pdf-workspace[data-empty-state="true"] .workspace-split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    justify-items: center;
+}
+
+.pdf-workspace[data-empty-state="true"] .upload-column {
+    width: min(100%, 760px);
+    transform: translateY(10px) scale(0.995);
+    animation: fade-up 420ms ease both;
+}
+
+.pdf-workspace[data-empty-state="true"] .action-column {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    pointer-events: none;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-color: transparent;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.pdf-workspace[data-empty-state="true"] .upload-launch {
+    min-height: 320px;
+    gap: 16px;
+}
+
+.pdf-workspace[data-empty-state="true"] .upload-launch-icon {
+    width: 76px;
+    height: 76px;
+}
+
+.pdf-workspace[data-empty-state="true"] .upload-launch-icon svg {
+    width: 30px;
+    height: 30px;
+}
+
+.pdf-workspace[data-empty-state="false"] .action-column {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 4000px;
+    animation: fade-up 320ms ease both;
 }
 
 .pdf-group {
