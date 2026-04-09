@@ -7,8 +7,10 @@ export async function createUploadRecord(file) {
         throw new Error(`${file.name} is not a PDF file.`);
     }
 
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const pdfDocument = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const sourceBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(sourceBuffer.slice(0));
+    const pdfWorkerBytes = new Uint8Array(sourceBuffer.slice(0));
+    const pdfDocument = await pdfjsLib.getDocument({ data: pdfWorkerBytes }).promise;
     const preview = await renderPreview(pdfDocument, 1, 0.34);
 
     return {
@@ -24,7 +26,8 @@ export async function createUploadRecord(file) {
 }
 
 export async function ensurePagePreviews(upload, scale = 0.34) {
-    const pdfDocument = await pdfjsLib.getDocument({ data: upload.bytes }).promise;
+    const workerBytes = new Uint8Array(upload.bytes.buffer.slice(0));
+    const pdfDocument = await pdfjsLib.getDocument({ data: workerBytes }).promise;
     const pages = [];
 
     for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
