@@ -6,5 +6,5 @@ require __DIR__ . '/../../includes/bootstrap.php';
 require_once __DIR__ . '/../../includes/pdf-workspace.php';
 
 render_layout('Custom Mix', function (): void {
-    render_pdf_workspace('mix');
+    render_merge_workspace('mix');
 });
