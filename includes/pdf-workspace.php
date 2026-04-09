@@ -32,7 +32,7 @@ function render_merge_workspace(string $mode = 'merge'): void
     $current = $modes[$mode] ?? $modes['merge'];
     ?>
     <section class="center-shell center-shell-top">
-        <section class="pdf-workspace pdf-workspace-detail" data-pdf-tool="merge">
+        <section class="pdf-workspace pdf-workspace-detail pdf-workspace-wide" data-pdf-tool="merge">
             <header class="page-heading">
                 <a class="back-link" href="<?= h(url_for('/tools/pdf/')) ?>">/ pdf tools</a>
                 <div class="page-heading-copy">
@@ -74,6 +74,9 @@ function render_merge_workspace(string $mode = 'merge'): void
                     <div class="merge-groups-empty" data-page-browser-empty>No PDFs loaded.</div>
                     <div class="merge-groups" data-page-groups hidden></div>
                     <div class="export-result" data-export-result hidden></div>
+                    <div class="footer-action-bar">
+                        <button class="button button-primary button-wide" type="button" data-export-button>Download PDF</button>
+                    </div>
                 </section>
             </div>
         </section>
@@ -93,7 +96,7 @@ function render_reorder_workspace(): void
 {
     ?>
     <section class="center-shell center-shell-top">
-        <section class="pdf-workspace pdf-workspace-detail" data-pdf-tool="reorder">
+        <section class="pdf-workspace pdf-workspace-detail pdf-workspace-wide" data-pdf-tool="reorder">
             <header class="page-heading">
                 <a class="back-link" href="<?= h(url_for('/tools/pdf/')) ?>">/ pdf tools</a>
                 <div class="page-heading-copy">
@@ -135,6 +138,9 @@ function render_reorder_workspace(): void
                     <div class="merge-groups-empty" data-canvas-empty>No PDFs loaded.</div>
                     <div class="reorder-canvas" data-reorder-canvas hidden></div>
                     <div class="export-result" data-export-result hidden></div>
+                    <div class="footer-action-bar">
+                        <button class="button button-primary button-wide" type="button" data-export-button>Download PDF</button>
+                    </div>
                 </section>
             </div>
         </section>

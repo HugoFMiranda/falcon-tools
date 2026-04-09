@@ -29,16 +29,14 @@ document.addEventListener('DOMContentLoaded', () => {
         feedback: root.querySelector('[data-feedback]'),
         sequenceCount: root.querySelector('[data-sequence-count]'),
         outputName: root.querySelector('[data-output-name]'),
-        exportButton: root.querySelector('[data-export-button]'),
+        exportButtons: Array.from(root.querySelectorAll('[data-export-button]')),
         exportResult: root.querySelector('[data-export-result]'),
         canvasEmpty: root.querySelector('[data-canvas-empty]'),
         reorderCanvas: root.querySelector('[data-reorder-canvas]'),
-        resetButton: root.querySelector('[data-reset-workspace]'),
     };
 
     elements.uploadInput.addEventListener('change', () => loadFiles(elements));
-    elements.exportButton.addEventListener('click', () => exportReordered(elements));
-    elements.resetButton.addEventListener('click', () => resetWorkspace(elements));
+    elements.exportButtons.forEach((button) => button.addEventListener('click', () => exportReordered(elements)));
 
     renderUploads(elements);
     renderCanvas(elements);
@@ -244,26 +242,17 @@ async function exportReordered(elements) {
     const uploadsById = new Map(state.uploads.map((upload) => [upload.id, upload]));
     const result = await buildPdfFromSequence(state.pageSequence, uploadsById, elements.outputName.value || 'falcon-reordered.pdf');
     state.exportUrl = result.url;
+    triggerDownload(result.url, result.filename);
     elements.exportResult.hidden = false;
-    elements.exportResult.innerHTML = `
-        <span>${result.pageCount} pages ready</span>
-        <a class="text-link" href="${result.url}" download="${escapeHtml(result.filename)}">Download PDF</a>
-    `;
+    elements.exportResult.innerHTML = `<span>${result.pageCount} pages downloaded</span>`;
     renderFeedback(elements.feedback, 'PDF ready.');
 }
 
-function resetWorkspace(elements) {
-    if (state.exportUrl) {
-        URL.revokeObjectURL(state.exportUrl);
-    }
-
-    state.uploads = [];
-    state.pageSequence = [];
-    state.draggedPageId = null;
-    state.draggedUploadId = null;
-    state.exportUrl = null;
-    elements.uploadInput.value = '';
-    clearFeedback(elements.feedback);
-    renderUploads(elements);
-    renderCanvas(elements);
+function triggerDownload(url, filename) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
 }

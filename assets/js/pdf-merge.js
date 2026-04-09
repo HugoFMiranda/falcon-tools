@@ -27,16 +27,14 @@ document.addEventListener('DOMContentLoaded', () => {
         feedback: root.querySelector('[data-feedback]'),
         selectionCount: root.querySelector('[data-selection-count]'),
         outputName: root.querySelector('[data-output-name]'),
-        exportButton: root.querySelector('[data-export-button]'),
+        exportButtons: Array.from(root.querySelectorAll('[data-export-button]')),
         exportResult: root.querySelector('[data-export-result]'),
         groupsEmpty: root.querySelector('[data-page-browser-empty]'),
         groups: root.querySelector('[data-page-groups]'),
-        resetButton: root.querySelector('[data-reset-workspace]'),
     };
 
     elements.uploadInput.addEventListener('change', () => loadFiles(elements));
-    elements.exportButton.addEventListener('click', () => exportMerge(elements));
-    elements.resetButton.addEventListener('click', () => resetWorkspace(elements));
+    elements.exportButtons.forEach((button) => button.addEventListener('click', () => exportMerge(elements)));
 
     renderUploads(elements);
     renderSelectionGroups(elements);
@@ -52,6 +50,9 @@ async function loadFiles(elements) {
         for (const file of files) {
             const upload = await createUploadRecord(file);
             state.uploads.push(upload);
+            for (let pageNumber = 1; pageNumber <= upload.pageCount; pageNumber += 1) {
+                state.selectedPages.add(pageKey(upload.id, pageNumber));
+            }
         }
 
         elements.uploadInput.value = '';
@@ -222,11 +223,9 @@ async function exportMerge(elements) {
 
     const result = await buildPdfFromSequence(sequence, uploadsById, elements.outputName.value || 'falcon-merged.pdf');
     state.exportUrl = result.url;
+    triggerDownload(result.url, result.filename);
     elements.exportResult.hidden = false;
-    elements.exportResult.innerHTML = `
-        <span>${result.pageCount} pages ready</span>
-        <a class="text-link" href="${result.url}" download="${escapeHtml(result.filename)}">Download PDF</a>
-    `;
+    elements.exportResult.innerHTML = `<span>${result.pageCount} pages downloaded</span>`;
     renderFeedback(elements.feedback, 'PDF ready.');
 }
 
@@ -246,4 +245,13 @@ function resetWorkspace(elements) {
 
 function pageKey(uploadId, pageNumber) {
     return `${uploadId}:${pageNumber}`;
+}
+
+function triggerDownload(url, filename) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
 }
