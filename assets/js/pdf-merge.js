@@ -12,6 +12,7 @@ const state = {
     uploads: [],
     selectedPages: new Set(),
     exportUrl: null,
+    renderVersion: 0,
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -28,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectionCount: root.querySelector('[data-selection-count]'),
         outputName: root.querySelector('[data-output-name]'),
         exportButtons: Array.from(root.querySelectorAll('[data-export-button]')),
+        resetButton: root.querySelector('[data-reset-button]'),
         exportResult: root.querySelector('[data-export-result]'),
         groupsEmpty: root.querySelector('[data-page-browser-empty]'),
         groups: root.querySelector('[data-page-groups]'),
@@ -35,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.uploadInput.addEventListener('change', () => loadFiles(elements));
     elements.exportButtons.forEach((button) => button.addEventListener('click', () => exportMerge(elements)));
+    elements.resetButton.addEventListener('click', () => resetWorkspace(elements));
 
     renderUploads(elements);
     renderSelectionGroups(elements);
@@ -96,6 +99,7 @@ function renderUploads(elements) {
 }
 
 async function renderSelectionGroups(elements) {
+    const renderVersion = ++state.renderVersion;
     elements.selectionCount.textContent = `${state.selectedPages.size} selected`;
 
     if (state.exportUrl) {
@@ -107,6 +111,7 @@ async function renderSelectionGroups(elements) {
     elements.exportResult.innerHTML = '';
 
     if (state.uploads.length === 0) {
+        elements.groups.innerHTML = '';
         elements.groups.hidden = true;
         elements.groupsEmpty.hidden = false;
         return;
@@ -118,6 +123,9 @@ async function renderSelectionGroups(elements) {
 
     for (const upload of state.uploads) {
         const pages = await ensurePagePreviews(upload, 0.28);
+        if (renderVersion !== state.renderVersion) {
+            return;
+        }
         const section = document.createElement('section');
         section.className = 'pdf-group';
         section.innerHTML = `
@@ -184,7 +192,7 @@ function toggleAll(upload, elements) {
         }
     });
 
-    renderSelectionGroups(elements);
+    void renderSelectionGroups(elements);
 }
 
 function removeUpload(uploadId, elements) {
@@ -197,7 +205,7 @@ function removeUpload(uploadId, elements) {
     });
 
     renderUploads(elements);
-    renderSelectionGroups(elements);
+    void renderSelectionGroups(elements);
 }
 
 async function exportMerge(elements) {
@@ -240,7 +248,7 @@ function resetWorkspace(elements) {
     elements.uploadInput.value = '';
     clearFeedback(elements.feedback);
     renderUploads(elements);
-    renderSelectionGroups(elements);
+    void renderSelectionGroups(elements);
 }
 
 function pageKey(uploadId, pageNumber) {

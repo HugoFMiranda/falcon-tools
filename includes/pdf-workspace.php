@@ -63,20 +63,17 @@ function render_merge_workspace(string $mode = 'merge'): void
                         <span class="mono-note" data-selection-count>0 selected</span>
                     </div>
 
-                    <div class="export-bar">
-                        <label class="field-group">
+                    <div class="merge-groups-empty" data-page-browser-empty>No PDFs loaded.</div>
+                    <div class="merge-groups" data-page-groups hidden></div>
+                    <div class="footer-action-bar">
+                        <button class="button button-secondary" type="button" data-reset-button>Reset</button>
+                        <label class="field-group footer-field">
                             <span>Output</span>
                             <input type="text" value="falcon-merged.pdf" data-output-name>
                         </label>
-                        <button class="button button-primary" type="button" data-export-button>Download</button>
+                        <button class="button button-primary" type="button" data-export-button>Download PDF</button>
                     </div>
-
-                    <div class="merge-groups-empty" data-page-browser-empty>No PDFs loaded.</div>
-                    <div class="merge-groups" data-page-groups hidden></div>
                     <div class="export-result" data-export-result hidden></div>
-                    <div class="footer-action-bar">
-                        <button class="button button-primary button-wide" type="button" data-export-button>Download PDF</button>
-                    </div>
                 </section>
             </div>
         </section>
@@ -127,20 +124,17 @@ function render_reorder_workspace(): void
                         <span class="mono-note" data-sequence-count>0 pages</span>
                     </div>
 
-                    <div class="export-bar">
-                        <label class="field-group">
+                    <div class="merge-groups-empty" data-canvas-empty>No PDFs loaded.</div>
+                    <div class="reorder-canvas" data-reorder-canvas hidden></div>
+                    <div class="footer-action-bar">
+                        <button class="button button-secondary" type="button" data-reset-button>Reset</button>
+                        <label class="field-group footer-field">
                             <span>Output</span>
                             <input type="text" value="falcon-reordered.pdf" data-output-name>
                         </label>
-                        <button class="button button-primary" type="button" data-export-button>Download</button>
+                        <button class="button button-primary" type="button" data-export-button>Download PDF</button>
                     </div>
-
-                    <div class="merge-groups-empty" data-canvas-empty>No PDFs loaded.</div>
-                    <div class="reorder-canvas" data-reorder-canvas hidden></div>
                     <div class="export-result" data-export-result hidden></div>
-                    <div class="footer-action-bar">
-                        <button class="button button-primary button-wide" type="button" data-export-button>Download PDF</button>
-                    </div>
                 </section>
             </div>
         </section>

@@ -355,6 +355,7 @@ h3 {
 .upload-item-body {
     display: grid;
     gap: 6px;
+    min-width: 0;
 }
 
 .upload-actions,
@@ -367,6 +368,13 @@ h3 {
 
 .upload-actions {
     grid-column: 1 / -1;
+}
+
+.upload-title,
+.pdf-group-head h3 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .button {
@@ -432,12 +440,14 @@ h3 {
 }
 
 .footer-action-bar {
-    display: flex;
-    justify-content: stretch;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: end;
 }
 
-.button-wide {
-    width: 100%;
+.footer-field {
+    min-width: 0;
 }
 
 .pdf-group {
@@ -530,7 +540,6 @@ h3 {
     }
 
     .workspace-split,
-    .export-bar,
     .column-heading,
     .action-header,
     .pdf-group-head,
@@ -553,6 +562,11 @@ h3 {
     .page-grid,
     .reorder-canvas {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+
+    .footer-action-bar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
     }
 }
 

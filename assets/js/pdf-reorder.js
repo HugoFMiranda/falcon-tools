@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sequenceCount: root.querySelector('[data-sequence-count]'),
         outputName: root.querySelector('[data-output-name]'),
         exportButtons: Array.from(root.querySelectorAll('[data-export-button]')),
+        resetButton: root.querySelector('[data-reset-button]'),
         exportResult: root.querySelector('[data-export-result]'),
         canvasEmpty: root.querySelector('[data-canvas-empty]'),
         reorderCanvas: root.querySelector('[data-reorder-canvas]'),
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.uploadInput.addEventListener('change', () => loadFiles(elements));
     elements.exportButtons.forEach((button) => button.addEventListener('click', () => exportReordered(elements)));
+    elements.resetButton.addEventListener('click', () => resetWorkspace(elements));
 
     renderUploads(elements);
     renderCanvas(elements);
@@ -113,6 +115,7 @@ function renderCanvas(elements) {
     elements.exportResult.innerHTML = '';
 
     if (state.pageSequence.length === 0) {
+        elements.reorderCanvas.innerHTML = '';
         elements.reorderCanvas.hidden = true;
         elements.canvasEmpty.hidden = false;
         return;
@@ -255,4 +258,20 @@ function triggerDownload(url, filename) {
     document.body.append(link);
     link.click();
     link.remove();
+}
+
+function resetWorkspace(elements) {
+    if (state.exportUrl) {
+        URL.revokeObjectURL(state.exportUrl);
+    }
+
+    state.uploads = [];
+    state.pageSequence = [];
+    state.draggedPageId = null;
+    state.draggedUploadId = null;
+    state.exportUrl = null;
+    elements.uploadInput.value = '';
+    clearFeedback(elements.feedback);
+    renderUploads(elements);
+    renderCanvas(elements);
 }
