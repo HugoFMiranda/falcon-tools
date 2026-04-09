@@ -330,23 +330,32 @@ h3 {
 }
 
 .upload-launch.is-compact {
-    min-height: 56px;
-    gap: 6px;
-    padding: 8px 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: start;
+    min-height: 0;
+    gap: 8px;
+    padding: 7px 12px;
+    border-style: solid;
+    background: rgba(255, 255, 255, 0.78);
 }
 
 .upload-launch.is-compact .upload-launch-icon {
-    width: 24px;
-    height: 24px;
+    width: 18px;
+    height: 18px;
+    background: transparent;
+    border: 0;
 }
 
 .upload-launch.is-compact .upload-launch-icon svg {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
 }
 
 .upload-launch.is-compact .upload-launch-title {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
+    font-weight: 600;
 }
 
 .feedback {
