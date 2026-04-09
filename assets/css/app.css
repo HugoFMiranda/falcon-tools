@@ -330,23 +330,23 @@ h3 {
 }
 
 .upload-launch.is-compact {
-    min-height: 92px;
-    gap: 8px;
-    padding: 12px;
+    min-height: 56px;
+    gap: 6px;
+    padding: 8px 10px;
 }
 
 .upload-launch.is-compact .upload-launch-icon {
-    width: 40px;
-    height: 40px;
+    width: 24px;
+    height: 24px;
 }
 
 .upload-launch.is-compact .upload-launch-icon svg {
-    width: 18px;
-    height: 18px;
+    width: 12px;
+    height: 12px;
 }
 
 .upload-launch.is-compact .upload-launch-title {
-    font-size: 0.92rem;
+    font-size: 0.82rem;
 }
 
 .feedback {
