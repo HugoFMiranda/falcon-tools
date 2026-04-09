@@ -17,6 +17,12 @@ function pdf_mode_catalog(): array
             'icon' => 'arrow-up-down',
             'href' => url_for('/tools/pdf/reorder.php'),
         ],
+        'compress' => [
+            'title' => 'Compress PDF',
+            'description' => 'Shrink one PDF for easier sharing.',
+            'icon' => 'minimize-2',
+            'href' => url_for('/tools/pdf/compress.php'),
+        ],
         'mix' => [
             'title' => 'Custom Mix',
             'description' => 'Compose a hand-picked page sequence.',
@@ -150,5 +156,92 @@ function render_reorder_workspace(): void
 
     <script src="<?= h(asset_url('vendor/pdf-lib/pdf-lib.min.js')) ?>" defer></script>
     <script src="<?= h(asset_url('js/pdf-reorder.js')) ?>" type="module"></script>
+    <?php
+}
+
+function render_compress_workspace(): void
+{
+    ?>
+    <section class="center-shell center-shell-top">
+        <section class="pdf-workspace pdf-workspace-detail pdf-workspace-wide" data-pdf-tool="compress">
+            <header class="page-heading">
+                <a class="back-link" href="<?= h(url_for('/tools/pdf/')) ?>">/ pdf tools</a>
+                <div class="page-heading-copy">
+                    <h1 class="page-title">Compress PDF</h1>
+                </div>
+            </header>
+
+            <div class="workspace-split">
+                <aside class="workspace-card upload-column stack-gap">
+                    <div class="column-heading">
+                        <h2>File</h2>
+                        <div class="column-heading-actions">
+                            <span class="mono-note" data-upload-count>0 loaded</span>
+                            <button class="subtle-icon-button" type="button" data-reset-button aria-label="Reset file" title="Reset file">
+                                <span data-lucide="brush-cleaning"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <label class="upload-launch" for="compress-pdf-file">
+                        <input id="compress-pdf-file" type="file" accept="application/pdf" data-upload-input>
+                        <span class="upload-launch-icon" data-lucide="plus"></span>
+                        <span class="upload-launch-title">Load PDF</span>
+                    </label>
+
+                    <div class="feedback" data-feedback hidden></div>
+                    <div class="uploaded-list" data-upload-list></div>
+                </aside>
+
+                <section class="workspace-card action-column stack-gap">
+                    <div class="action-header">
+                        <h2>Compression</h2>
+                        <span class="mono-note" data-file-size-note>No file</span>
+                    </div>
+
+                    <div class="compress-empty" data-compress-empty>No PDF loaded.</div>
+                    <div class="compress-panel stack-gap" data-compress-panel hidden>
+                        <div class="compress-levels" data-levels>
+                            <button class="level-card is-active" type="button" data-level="balanced">
+                                <span class="level-title">Balanced</span>
+                                <span class="level-meta">Good quality</span>
+                            </button>
+                            <button class="level-card" type="button" data-level="strong">
+                                <span class="level-title">Strong</span>
+                                <span class="level-meta">Smaller file</span>
+                            </button>
+                            <button class="level-card" type="button" data-level="maximum">
+                                <span class="level-title">Maximum</span>
+                                <span class="level-meta">Most aggressive</span>
+                            </button>
+                        </div>
+
+                        <div class="compress-summary" data-summary>
+                            <div class="summary-pill">
+                                <span class="summary-label">Pages</span>
+                                <span class="summary-value" data-page-count>0</span>
+                            </div>
+                            <div class="summary-pill">
+                                <span class="summary-label">Original</span>
+                                <span class="summary-value" data-original-size>0 KB</span>
+                            </div>
+                        </div>
+
+                        <div class="footer-action-bar">
+                            <label class="field-group footer-field">
+                                <span>Output</span>
+                                <input type="text" value="falcon-compressed.pdf" data-output-name>
+                            </label>
+                            <button class="button button-primary" type="button" data-export-button>Compress PDF</button>
+                        </div>
+                    </div>
+                    <div class="export-result" data-export-result hidden></div>
+                </section>
+            </div>
+        </section>
+    </section>
+
+    <script src="<?= h(asset_url('vendor/pdf-lib/pdf-lib.min.js')) ?>" defer></script>
+    <script src="<?= h(asset_url('js/pdf-compress.js')) ?>" type="module"></script>
     <?php
 }

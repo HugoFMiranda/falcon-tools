@@ -166,6 +166,7 @@ function render_icon(string $name): string
         'video' => 'video',
         'files' => 'files',
         'arrow-up-down' => 'arrow-up-down',
+        'minimize-2' => 'minimize-2',
         'blend' => 'blend',
     ];
 

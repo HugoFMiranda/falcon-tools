@@ -206,6 +206,12 @@ h3 {
     gap: 18px;
 }
 
+.compress-panel,
+.compress-levels,
+.compress-summary {
+    display: grid;
+}
+
 .tool-card,
 .workspace-card,
 .pdf-group,
@@ -523,6 +529,70 @@ h3 {
     border-radius: var(--radius-sm);
 }
 
+.compress-empty,
+.compress-summary,
+.level-card {
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.72));
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: var(--shadow-soft);
+}
+
+.compress-empty {
+    padding: 16px;
+    border-radius: var(--radius-sm);
+}
+
+.compress-levels {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.level-card {
+    display: grid;
+    gap: 6px;
+    padding: 16px;
+    border-radius: var(--radius-sm);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.level-card:hover {
+    transform: translateY(-1px);
+    border-color: var(--line-strong);
+}
+
+.level-card.is-active {
+    border-color: rgba(37, 99, 235, 0.72);
+    background: rgba(239, 246, 255, 0.9);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.level-title,
+.summary-value {
+    font-weight: 700;
+}
+
+.level-meta,
+.summary-label {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.compress-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 14px;
+    border-radius: var(--radius-sm);
+}
+
+.summary-pill {
+    display: grid;
+    gap: 4px;
+}
+
 .export-result:empty {
     display: none !important;
 }
@@ -765,7 +835,9 @@ h3 {
     }
 
     .page-grid,
-    .reorder-canvas {
+    .reorder-canvas,
+    .compress-levels,
+    .compress-summary {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     }
 

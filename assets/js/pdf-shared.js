@@ -47,6 +47,62 @@ export async function ensurePagePreviews(upload, scale = 0.34) {
     return pages;
 }
 
+export async function compressPdfUpload(upload, options = {}, onProgress = null) {
+    const { PDFDocument } = window.PDFLib;
+    const quality = clampNumber(options.quality, 0.35, 0.92, 0.76);
+    const renderScale = clampNumber(options.renderScale, 0.55, 1.5, 1);
+    const targetName = sanitizeOutputName(options.outputName || upload.name || 'falcon-compressed.pdf');
+    const workerBytes = new Uint8Array(upload.bytes.buffer.slice(0));
+    const pdfDocument = await pdfjsLib.getDocument({ data: workerBytes }).promise;
+    const outputPdf = await PDFDocument.create();
+
+    for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+        const page = await pdfDocument.getPage(pageNumber);
+        const sourceViewport = page.getViewport({ scale: 1 });
+        const renderViewport = page.getViewport({ scale: renderScale });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d', { alpha: false });
+
+        canvas.width = Math.max(1, Math.round(renderViewport.width));
+        canvas.height = Math.max(1, Math.round(renderViewport.height));
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        await page.render({ canvasContext: context, viewport: renderViewport }).promise;
+
+        const imageDataUrl = canvas.toDataURL('image/jpeg', quality);
+        const imageBytes = dataUrlToUint8Array(imageDataUrl);
+        const jpgImage = await outputPdf.embedJpg(imageBytes);
+        const outputPage = outputPdf.addPage([sourceViewport.width, sourceViewport.height]);
+
+        outputPage.drawImage(jpgImage, {
+            x: 0,
+            y: 0,
+            width: sourceViewport.width,
+            height: sourceViewport.height,
+        });
+
+        if (typeof onProgress === 'function') {
+            onProgress({
+                pageNumber,
+                pageCount: pdfDocument.numPages,
+            });
+        }
+    }
+
+    const bytes = await outputPdf.save({ useObjectStreams: true });
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+
+    return {
+        url,
+        filename: targetName,
+        originalSize: upload.size,
+        compressedSize: bytes.length,
+        pageCount: pdfDocument.numPages,
+    };
+}
+
 export async function buildPdfFromSequence(sequence, uploadsById, outputName) {
     const { PDFDocument, degrees } = window.PDFLib;
     const mergedPdf = await PDFDocument.create();
@@ -153,4 +209,25 @@ async function renderPreview(pdfDocument, pageNumber, scale) {
     await page.render({ canvasContext: context, viewport }).promise;
 
     return canvas.toDataURL('image/jpeg', 0.84);
+}
+
+function clampNumber(value, min, max, fallback) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+        return fallback;
+    }
+
+    return Math.min(max, Math.max(min, numeric));
+}
+
+function dataUrlToUint8Array(dataUrl) {
+    const [, base64 = ''] = dataUrl.split(',');
+    const binary = window.atob(base64);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+    }
+
+    return bytes;
 }
