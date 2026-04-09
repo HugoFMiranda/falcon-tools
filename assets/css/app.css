@@ -625,8 +625,9 @@ h3 {
 }
 
 .page-tile.is-selected {
-    border-color: rgba(59, 130, 246, 0.32);
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08);
+    border-color: rgba(37, 99, 235, 0.72);
+    background: rgba(239, 246, 255, 0.9);
+    box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.18), 0 16px 30px rgba(59, 130, 246, 0.14);
 }
 
 .page-tile-hit {
