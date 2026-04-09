@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const elements = {
         uploadInput: root.querySelector('[data-upload-input]'),
+        uploadLaunch: root.querySelector('.upload-launch'),
         uploadCount: root.querySelector('[data-upload-count]'),
         uploadList: root.querySelector('[data-upload-list]'),
         feedback: root.querySelector('[data-feedback]'),
@@ -68,6 +69,7 @@ async function loadFiles(elements) {
 }
 
 function renderUploads(elements) {
+    elements.uploadLaunch.classList.toggle('is-compact', state.uploads.length > 0);
     elements.uploadCount.textContent = `${state.uploads.length} loaded`;
 
     if (state.uploads.length === 0) {
