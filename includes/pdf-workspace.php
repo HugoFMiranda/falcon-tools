@@ -31,7 +31,7 @@ function render_merge_workspace(string $mode = 'merge'): void
     $modes = pdf_mode_catalog();
     $current = $modes[$mode] ?? $modes['merge'];
     ?>
-    <section class="center-shell">
+    <section class="center-shell center-shell-top">
         <section class="pdf-workspace pdf-workspace-detail" data-pdf-tool="merge">
             <header class="page-heading">
                 <a class="back-link" href="<?= h(url_for('/tools/pdf/')) ?>">/ pdf tools</a>
@@ -92,7 +92,7 @@ function render_merge_workspace(string $mode = 'merge'): void
 function render_reorder_workspace(): void
 {
     ?>
-    <section class="center-shell">
+    <section class="center-shell center-shell-top">
         <section class="pdf-workspace pdf-workspace-detail" data-pdf-tool="reorder">
             <header class="page-heading">
                 <a class="back-link" href="<?= h(url_for('/tools/pdf/')) ?>">/ pdf tools</a>

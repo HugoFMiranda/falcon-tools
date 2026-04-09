@@ -11,8 +11,8 @@
     --muted: #70756f;
     --accent: #3b82f6;
     --warn: #a16b31;
-    --radius: 30px;
-    --radius-sm: 22px;
+    --radius: 10px;
+    --radius-sm: 10px;
     --shadow: 0 24px 72px rgba(15, 23, 42, 0.08);
     --shadow-soft: 0 12px 28px rgba(15, 23, 42, 0.04);
     --max-width: 1180px;
@@ -86,6 +86,11 @@ input {
     min-height: calc(100vh - 124px);
 }
 
+.center-shell.center-shell-top {
+    place-items: start center;
+    min-height: auto;
+}
+
 .dashboard-shell,
 .pdf-workspace {
     width: min(100%, 1140px);
@@ -122,6 +127,12 @@ h3 {
     justify-items: center;
     text-align: center;
     margin-bottom: 28px;
+}
+
+.center-shell-top .page-heading {
+    justify-items: start;
+    text-align: left;
+    margin-bottom: 22px;
 }
 
 .page-heading-copy {
@@ -207,7 +218,7 @@ h3 {
     place-items: center;
     width: 88px;
     height: 88px;
-    border-radius: 24px;
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.86);
     border: 1px solid rgba(15, 23, 42, 0.05);
     box-shadow: var(--shadow-soft);
@@ -283,7 +294,7 @@ h3 {
     place-items: center;
     width: 64px;
     height: 64px;
-    border-radius: 20px;
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid var(--line);
 }
@@ -507,6 +518,11 @@ h3 {
     .tool-grid-minimal,
     .mode-grid {
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .center-shell.center-shell-top .page-heading {
+        justify-items: center;
+        text-align: center;
     }
 
     .page-grid,
