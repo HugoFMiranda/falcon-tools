@@ -14,6 +14,8 @@ const state = {
     draggedPageId: null,
     draggedUploadId: null,
     exportUrl: null,
+    dropTargetPageId: null,
+    dropTargetPlacement: null,
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -139,10 +141,12 @@ function renderCanvas(elements) {
         `;
 
         article.addEventListener('dragstart', (event) => handlePageDragStart(event, item.id));
-        article.addEventListener('dragover', handleDragOver);
+        article.addEventListener('dragover', (event) => handlePageDragOver(event, item.id, elements));
+        article.addEventListener('dragleave', (event) => handlePageDragLeave(event, item.id, elements));
         article.addEventListener('drop', (event) => handlePageDrop(event, item.id, elements));
         article.addEventListener('dragend', () => {
             state.draggedPageId = null;
+            clearDropIndicator(elements);
         });
         elements.reorderCanvas.append(article);
     });
@@ -179,10 +183,35 @@ function handleDragOver(event) {
     event.dataTransfer.dropEffect = 'move';
 }
 
+function handlePageDragOver(event, targetPageId, elements) {
+    handleDragOver(event);
+
+    const targetTile = event.currentTarget;
+    const placement = getDropPlacement(event, targetTile);
+
+    if (state.dropTargetPageId === targetPageId && state.dropTargetPlacement === placement) {
+        return;
+    }
+
+    clearDropIndicator(elements);
+    state.dropTargetPageId = targetPageId;
+    state.dropTargetPlacement = placement;
+    targetTile.dataset.dropPosition = placement;
+}
+
+function handlePageDragLeave(event, targetPageId, elements) {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+        if (state.dropTargetPageId === targetPageId) {
+            clearDropIndicator(elements);
+        }
+    }
+}
+
 function handlePageDrop(event, targetPageId, elements) {
     event.preventDefault();
     const draggedPageId = state.draggedPageId || event.dataTransfer.getData('text/plain');
     if (!draggedPageId || draggedPageId === targetPageId) {
+        clearDropIndicator(elements);
         return;
     }
 
@@ -190,12 +219,20 @@ function handlePageDrop(event, targetPageId, elements) {
     const toIndex = state.pageSequence.findIndex((item) => item.id === targetPageId);
 
     if (fromIndex === -1 || toIndex === -1) {
+        clearDropIndicator(elements);
         return;
     }
 
+    const placement = state.dropTargetPageId === targetPageId ? state.dropTargetPlacement : getDropPlacement(event, event.currentTarget);
     const [item] = state.pageSequence.splice(fromIndex, 1);
-    const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+    let insertIndex = placement === 'after' ? toIndex + 1 : toIndex;
+
+    if (fromIndex < insertIndex) {
+        insertIndex -= 1;
+    }
+
     state.pageSequence.splice(insertIndex, 0, item);
+    clearDropIndicator(elements);
     renderCanvas(elements);
 }
 
@@ -248,7 +285,7 @@ async function exportReordered(elements) {
     triggerDownload(result.url, result.filename);
     elements.exportResult.hidden = false;
     elements.exportResult.innerHTML = `<span>${result.pageCount} pages downloaded</span>`;
-    renderFeedback(elements.feedback, 'PDF ready.');
+    clearFeedback(elements.feedback);
 }
 
 function triggerDownload(url, filename) {
@@ -270,8 +307,28 @@ function resetWorkspace(elements) {
     state.draggedPageId = null;
     state.draggedUploadId = null;
     state.exportUrl = null;
+    state.dropTargetPageId = null;
+    state.dropTargetPlacement = null;
     elements.uploadInput.value = '';
     clearFeedback(elements.feedback);
     renderUploads(elements);
     renderCanvas(elements);
+}
+
+function clearDropIndicator(elements) {
+    if (state.dropTargetPageId) {
+        const activeTile = elements.reorderCanvas.querySelector(`[data-page-id="${CSS.escape(state.dropTargetPageId)}"]`);
+        if (activeTile) {
+            delete activeTile.dataset.dropPosition;
+        }
+    }
+
+    state.dropTargetPageId = null;
+    state.dropTargetPlacement = null;
+}
+
+function getDropPlacement(event, element) {
+    const bounds = element.getBoundingClientRect();
+    const midpointX = bounds.left + (bounds.width / 2);
+    return event.clientX >= midpointX ? 'after' : 'before';
 }

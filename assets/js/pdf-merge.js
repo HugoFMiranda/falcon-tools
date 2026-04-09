@@ -234,7 +234,7 @@ async function exportMerge(elements) {
     triggerDownload(result.url, result.filename);
     elements.exportResult.hidden = false;
     elements.exportResult.innerHTML = `<span>${result.pageCount} pages downloaded</span>`;
-    renderFeedback(elements.feedback, 'PDF ready.');
+    clearFeedback(elements.feedback);
 }
 
 function resetWorkspace(elements) {
