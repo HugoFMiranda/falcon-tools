@@ -879,3 +879,39 @@ h3 {
         grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
     }
 }
+
+.site-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 20px 24px;
+    font-size: 0.875rem;
+    color: #6b7280;
+    border-top: 1px solid #e5e7eb;
+}
+
+.site-footer a {
+    color: #6b7280;
+    text-decoration: none;
+}
+
+.site-footer a:hover {
+    color: #111827;
+}
+
+.site-footer-github {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.site-footer-github:hover {
+    border-color: #111827;
+    color: #111827 !important;
+}
