@@ -8,10 +8,10 @@ return [
         'base_url' => '',
     ],
     'storage' => [
-        'uploads' => __DIR__ . '/../storage/uploads',
-        'output' => __DIR__ . '/../storage/output',
-        'temp' => __DIR__ . '/../storage/temp',
-        'sessions' => __DIR__ . '/../storage/sessions',
+        'uploads' => '/var/lib/falcon-tools/uploads',
+        'output'  => '/var/lib/falcon-tools/output',
+        'temp'    => '/var/lib/falcon-tools/temp',
+        'sessions' => '/var/lib/falcon-tools/sessions',
         'cleanup_after_seconds' => 24 * 60 * 60,
     ],
     'pdf' => [
