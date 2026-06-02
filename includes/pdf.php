@@ -521,6 +521,54 @@ function pdf_render_webpage_to_pdf(string $url, string $outputName, array $optio
     }
 }
 
+function pdf_is_ssrf_blocked(string $hostname): bool
+{
+    $bare = trim($hostname, '[]');
+
+    // Resolve hostname; if already an IP, gethostbyname returns it unchanged
+    $ip = gethostbyname($bare);
+
+    // Unresolvable and not a bare IP — block to be safe
+    if ($ip === $bare && filter_var($bare, FILTER_VALIDATE_IP) === false) {
+        return true;
+    }
+
+    $check = ($ip !== $bare) ? $ip : $bare;
+
+    // IPv6: loopback, ULA, link-local
+    if (filter_var($check, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+        $lower = strtolower($check);
+        return $lower === '::1'
+            || str_starts_with($lower, 'fc')
+            || str_starts_with($lower, 'fd')
+            || str_starts_with($lower, 'fe80');
+    }
+
+    $long = ip2long($check);
+    if ($long === false) {
+        return false;
+    }
+
+    // Block loopback, private, link-local, Tailscale CGNAT, reserved
+    foreach ([
+        [ip2long('0.0.0.0'),     ip2long('0.255.255.255')],
+        [ip2long('10.0.0.0'),    ip2long('10.255.255.255')],
+        [ip2long('100.64.0.0'),  ip2long('100.127.255.255')],
+        [ip2long('127.0.0.0'),   ip2long('127.255.255.255')],
+        [ip2long('169.254.0.0'), ip2long('169.254.255.255')],
+        [ip2long('172.16.0.0'),  ip2long('172.31.255.255')],
+        [ip2long('192.168.0.0'), ip2long('192.168.255.255')],
+        [ip2long('198.18.0.0'),  ip2long('198.19.255.255')],
+        [ip2long('240.0.0.0'),   ip2long('255.255.255.255')],
+    ] as [$start, $end]) {
+        if ($long >= $start && $long <= $end) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function pdf_normalize_webpage_url(string $url): string
 {
     $normalized = trim($url);
@@ -539,6 +587,11 @@ function pdf_normalize_webpage_url(string $url): string
     $scheme = strtolower((string) parse_url($normalized, PHP_URL_SCHEME));
     if (!in_array($scheme, ['http', 'https'], true)) {
         throw new RuntimeException('Only http and https webpages are supported.');
+    }
+
+    $host = trim((string) parse_url($normalized, PHP_URL_HOST), '[]');
+    if (pdf_is_ssrf_blocked($host)) {
+        throw new RuntimeException('The webpage URL points to a private or internal address.');
     }
 
     return $normalized;
