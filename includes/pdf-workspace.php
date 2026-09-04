@@ -29,12 +29,6 @@ function pdf_mode_catalog(): array
             'icon' => 'globe',
             'href' => url_for('/tools/pdf/webpage.php'),
         ],
-        'mix' => [
-            'title' => 'Custom Mix',
-            'description' => 'Compose a hand-picked page sequence.',
-            'icon' => 'blend',
-            'href' => url_for('/tools/pdf/mix.php'),
-        ],
     ];
 }
 
