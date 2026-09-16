@@ -216,6 +216,8 @@ function render_compress_workspace(): void
                             </button>
                         </div>
 
+                        <p class="subtle-note">Compress rasterizes each page to an image, so the output is smaller but its text is no longer selectable or searchable. For a document where that matters, use Merge or Reorder instead, or keep the original alongside the compressed copy.</p>
+
                         <div class="compress-summary" data-summary>
                             <div class="summary-pill">
                                 <span class="summary-label">Pages</span>
