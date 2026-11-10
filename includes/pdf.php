@@ -478,6 +478,11 @@ function pdf_find_browser_binary(): ?string
 
 function pdf_render_webpage_to_pdf(string $url, string $outputName, array $options = []): array
 {
+    $wrapper = trim((string) app_config('pdf.render_wrapper', ''));
+    if ($wrapper !== '' && is_file($wrapper)) {
+        return pdf_render_webpage_via_wrapper($wrapper, $url, $outputName, $options);
+    }
+
     $browserBinary = pdf_find_browser_binary();
     if ($browserBinary === null) {
         throw new RuntimeException('Chrome or Chromium is not available on this server.');
@@ -521,6 +526,33 @@ function pdf_render_webpage_to_pdf(string $url, string $outputName, array $optio
     }
 }
 
+/**
+ * The URL check below only vets the first host. Chrome then follows redirects,
+ * iframes and scripts on its own, so the real SSRF boundary is the wrapper's
+ * user, whose egress the firewall limits to public hosts.
+ */
+function pdf_render_webpage_via_wrapper(string $wrapper, string $url, string $outputName, array $options): array
+{
+    $normalizedUrl = pdf_normalize_webpage_url($url);
+    $waitMs = max(0, min(15000, (int) ($options['wait_ms'] ?? 4000)));
+    $outputFile = rtrim((string) app_config('pdf.render_wrapper_output'), '/') . '/' . pdf_make_id('webpage') . '.pdf';
+
+    [$exitCode, $stdout, $stderr] = pdf_run_command([
+        '/usr/bin/sudo', '-n', '-u', (string) app_config('pdf.render_wrapper_user'),
+        $wrapper, $normalizedUrl, $outputFile, (string) $waitMs,
+    ]);
+
+    try {
+        if ($exitCode !== 0 || !is_file($outputFile)) {
+            throw new RuntimeException('Webpage rendering failed. ' . trim($stderr !== '' ? $stderr : $stdout));
+        }
+
+        return pdf_register_output_file($outputName, $outputFile);
+    } finally {
+        @unlink($outputFile);
+    }
+}
+
 function pdf_is_ssrf_blocked(string $hostname): bool
 {
     $bare = trim($hostname, '[]');
@@ -534,6 +566,12 @@ function pdf_is_ssrf_blocked(string $hostname): bool
     }
 
     $check = ($ip !== $bare) ? $ip : $bare;
+
+    // Anything outside the global unicast range: covers what the lists below
+    // miss, e.g. IPv4-mapped [::ffff:127.0.0.1] and the unspecified [::]
+    if (filter_var($check, FILTER_VALIDATE_IP, FILTER_FLAG_GLOBAL_RANGE) === false) {
+        return true;
+    }
 
     // IPv6: loopback, ULA, link-local
     if (filter_var($check, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
